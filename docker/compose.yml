@@ -1,0 +1,64 @@
+name: real2block
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    image: real2block-api
+    env_file:
+      - path: ../backend/.env
+        required: false
+    environment:
+      # In-memory rate limits are per process, so keep one worker until a shared store exists.
+      WEB_CONCURRENCY: "1"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/healthz')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  caddy:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.web
+      target: web
+    image: real2block-web
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web-dev:
+    profiles: [dev]
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.web
+      target: dev
+    environment:
+      VITE_API_PROXY: http://api:8000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ../frontend/src:/web/src:ro
+      - ../frontend/index.html:/web/index.html:ro
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  caddy_data:
+  caddy_config:
