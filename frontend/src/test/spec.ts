@@ -1,0 +1,18 @@
+import type { SkinSpec } from "../api/client";
+
+export const SPEC: SkinSpec = {
+  spec_version: 1,
+  model: "classic",
+  stylizer: "template",
+  hair_style: "short",
+  palette: {
+    skin: "#C68642",
+    hair: "#4A3222",
+    eye_white: "#FFFFFF",
+    iris: "#3B2A1A",
+    mouth: "#9C5B4E",
+    shirt: "#3FA7A0",
+    pants: "#2E3A8C",
+    shoes: "#3A3A3A",
+  },
+};
