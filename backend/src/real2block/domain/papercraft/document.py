@@ -4,9 +4,10 @@ from dataclasses import dataclass
 from typing import Literal, Protocol
 
 from real2block.domain.errors import WarningCode
-from real2block.domain.papercraft.layout import NetPage, Paper, place_single
+from real2block.domain.papercraft.layout import NetPage, Paper, layout_pages
 from real2block.domain.papercraft.net import build_net_part
 from real2block.domain.papercraft.strings import Lang
+from real2block.domain.skin.geometry import PART_IDS
 from real2block.domain.skin.io import ModelChoice, load_print_skin, resolve_model
 
 PrintMode = Literal["color", "numbered"]
@@ -64,10 +65,9 @@ class PapercraftService:
             skin = skin.flatten_overlay(model)
         filled = skin.fill_transparent_base(model)
         warnings: tuple[WarningCode, ...] = ("TRANSPARENT_BASE_PIXELS",) if filled.filled else ()
-        # Reference vertical: only the head page until full layout lands (tech.md §14).
-        head = build_net_part(filled.skin, "head", model, options.pixel_mm)
+        nets = [build_net_part(filled.skin, p, model, options.pixel_mm) for p in PART_IDS]
         document = NetDocument(
-            pages=(place_single(head, options.paper),),
+            pages=layout_pages(nets, options.paper),
             lang=options.lang,
             grid_lines=options.grid_lines,
         )

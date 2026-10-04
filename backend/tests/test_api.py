@@ -174,7 +174,7 @@ def test_normalize_requires_file(client: TestClient) -> None:
 # /papercraft
 
 
-def test_papercraft_returns_head_page(client: TestClient, reference_png: bytes) -> None:
+def test_papercraft_returns_net_pages(client: TestClient, reference_png: bytes) -> None:
     response = _papercraft(client, reference_png)
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/pdf"
@@ -182,12 +182,21 @@ def test_papercraft_returns_head_page(client: TestClient, reference_png: bytes) 
     assert disposition == 'attachment; filename="real2block-figure.pdf"'
     assert response.content.startswith(b"%PDF")
     pdf = _pdf(response)
-    assert len(pdf.pages) == 1
+    assert len(pdf.pages) == 2
     box = pdf.pages[0].mediabox
     assert (float(box.width), float(box.height)) == pytest.approx(A4_PT, abs=0.1)
-    page_text = pdf.pages[0].extract_text()
-    for letter in "ABCDEFG":
-        assert f"H-{letter}" in page_text
+    text = "".join(page.extract_text() for page in pdf.pages)
+    for code in ("H", "B", "RA", "LA", "RL", "LL"):
+        for letter in "ABCDEFG":
+            assert f"{code}-{letter}" in text
+
+
+def test_papercraft_rejects_cells_too_big_for_paper(
+    client: TestClient, reference_png: bytes
+) -> None:
+    response = _papercraft(client, reference_png, pixel_mm=8)
+    assert response.status_code == 422
+    assert _error_code(response) == "INVALID_OPTIONS"
 
 
 def test_papercraft_letter(client: TestClient, reference_png: bytes) -> None:
