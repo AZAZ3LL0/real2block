@@ -182,8 +182,8 @@ def test_papercraft_returns_full_document(client: TestClient, reference_png: byt
     assert disposition == 'attachment; filename="real2block-figure.pdf"'
     assert response.content.startswith(b"%PDF")
     pdf = _pdf(response)
-    # Cover, printing guide, two net pages, assembly.
-    assert len(pdf.pages) == 5
+    # Cover, printing guide, two net pages, assembly, legend.
+    assert len(pdf.pages) == 6
     box = pdf.pages[0].mediabox
     assert (float(box.width), float(box.height)) == pytest.approx(A4_PT, abs=0.1)
     text = "".join(page.extract_text() for page in pdf.pages)
@@ -214,6 +214,15 @@ def test_papercraft_warns_about_transparent_base(client: TestClient) -> None:
     response = _papercraft(client, png_bytes(blank()))
     assert response.status_code == 200
     assert response.headers["x-real2block-warnings"] == "TRANSPARENT_BASE_PIXELS"
+
+
+def test_papercraft_numbered_reports_palette_reduced(
+    client: TestClient, reference_png: bytes
+) -> None:
+    numbered = _papercraft(client, reference_png, mode="numbered")
+    colored = _papercraft(client, reference_png, mode="color")
+    assert numbered.headers["x-real2block-warnings"] == "PALETTE_REDUCED"
+    assert "x-real2block-warnings" not in colored.headers
 
 
 @pytest.mark.parametrize(

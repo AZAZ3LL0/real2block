@@ -60,6 +60,15 @@ _STRINGS: Mapping[Lang, Mapping[str, str]] = MappingProxyType(
                 "(правая нога под правую половину). Руки — внутренними боковыми гранями "
                 "к боковым граням туловища. Голову — нижней гранью по центру верхней грани "
                 "туловища. Зоны склейки выделены рамкой.",
+                "legend.title": "Легенда цветов",
+                "legend.hint.color": "Сколько клеток каждого цвета в фигурке.",
+                "legend.hint.numbered": "Клетки развёрток напечатаны серым с номером цвета: "
+                "раскрасьте их по таблице или соберите из цветных блоков.",
+                "legend.number": "№",
+                "legend.color": "Цвет",
+                "legend.hex": "Код",
+                "legend.cells": "Клеток",
+                "legend.other": "прочие",
                 "part.head": "голова",
                 "part.body": "туловище",
                 "part.right_arm": "правая рука",
@@ -117,6 +126,15 @@ _STRINGS: Mapping[Lang, Mapping[str, str]] = MappingProxyType(
                 "(right leg under the right half). Glue the inner sides of the arms to the sides "
                 "of the body. Glue the bottom of the head to the middle of the top of the body. "
                 "Glue zones are framed.",
+                "legend.title": "Color legend",
+                "legend.hint.color": "How many cells of each color the figure has.",
+                "legend.hint.numbered": "Net cells are printed gray with a color number: "
+                "color them using this table or build them from colored blocks.",
+                "legend.number": "No.",
+                "legend.color": "Color",
+                "legend.hex": "Hex",
+                "legend.cells": "Cells",
+                "legend.other": "other",
                 "part.head": "head",
                 "part.body": "body",
                 "part.right_arm": "right arm",

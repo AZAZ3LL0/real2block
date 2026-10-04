@@ -28,6 +28,7 @@ from real2block.domain.papercraft.layout import (
     PageFrame,
     Placement,
 )
+from real2block.domain.papercraft.legend import Legend
 from real2block.domain.papercraft.net import PART_CODES, Label, NetPart, Point
 from real2block.domain.papercraft.strings import Lang, part_name, text
 
@@ -66,9 +67,17 @@ STEP_PAD_MM = 4.0
 DIAGRAM_MAX_CELL_MM = 3.0
 DIAGRAM_LINE_PT = 0.3
 GLUE_LINE_PT = 1.2
+NUMBERED_GRAY = 0.9
+NUMBER_GRAY = 0.35
+NUMBER_SIZE_RATIO = 0.45
+LEGEND_ROW_MM = 6.0
+LEGEND_SWATCH_MM = 4.5
+LEGEND_COLUMNS_MM = (0.0, 14.0, 28.0, 60.0)
 
 _BLACK = Color(0, 0, 0)
 _WHITE = Color(1, 1, 1)
+_NUMBERED_FILL = Color(NUMBERED_GRAY, NUMBERED_GRAY, NUMBERED_GRAY)
+_NUMBER_INK = Color(NUMBER_GRAY, NUMBER_GRAY, NUMBER_GRAY)
 _GLUE = Color(0.89, 0.34, 0.18)
 _TONES: dict[Tone, Color] = {
     "top": Color(0.93, 0.93, 0.93),
@@ -205,17 +214,21 @@ class _Page:
 class _NetPainter:
     """Draws placed nets: cells, grid, tabs, cut and fold lines, labels."""
 
-    def __init__(self, page: _Page, grid: bool) -> None:
+    def __init__(self, page: _Page, grid: bool, legend: Legend | None = None) -> None:
         self.page = page
         self.grid = grid
+        # Numbered mode prints gray cells with color numbers instead of colors.
+        self.numbers = legend if legend is not None and legend.mode == "numbered" else None
 
     def draw(self, placement: Placement) -> None:
         net, dx, dy = placement.net, placement.x, placement.y
         page, c = self.page, self.page.c
         for cell in net.cells:
-            c.setFillColor(_color(cell.color))
+            c.setFillColor(_color(cell.color) if self.numbers is None else _NUMBERED_FILL)
             x, y = page.xy(cell.x + dx, cell.y + dy + cell.size)
             c.rect(x, y, cell.size * mm, cell.size * mm, stroke=0, fill=1)
+        if self.numbers is not None:
+            self._numbers(net, self.numbers, dx, dy)
         if self.grid:
             self._grid(net, dx, dy)
         for tab in net.tabs:
@@ -223,6 +236,18 @@ class _NetPainter:
         self._lines(net, dx, dy)
         for label in [t.label for t in net.tabs] + list(net.edge_labels):
             self._label(label, dx, dy)
+
+    def _numbers(self, net: NetPart, legend: Legend, dx: float, dy: float) -> None:
+        page, c = self.page, self.page.c
+        c.setFillColor(_NUMBER_INK)
+        for cell in net.cells:
+            number = legend.number_of(cell.color)
+            if number is None:
+                continue
+            size = cell.size * mm * NUMBER_SIZE_RATIO
+            c.setFont(LABEL_FONT, size)
+            x, y = page.xy(cell.x + dx + cell.size / 2, cell.y + dy + cell.size / 2)
+            c.drawCentredString(x, y - size / 3, str(number))
 
     def _grid(self, net: NetPart, dx: float, dy: float) -> None:
         page, c = self.page, self.page.c
@@ -397,6 +422,44 @@ class _GuidePainter:
             self.page.tag(label.text, *at(label.at))
 
 
+class _LegendPainter:
+    """Draws the color legend table."""
+
+    def __init__(self, page: _Page, lang: Lang) -> None:
+        self.page = page
+        self.lang = lang
+
+    def draw(self, legend: Legend) -> None:
+        page, frame = self.page, self.page.frame
+        y = page.title(text(self.lang, "legend.title"))
+        hint = text(self.lang, f"legend.hint.{legend.mode}")
+        y = page.paragraph(hint, frame.content_x, y, frame.content_w) + SECTION_GAP_MM
+        keys = ("legend.number", "legend.color", "legend.hex", "legend.cells")
+        self._row([text(self.lang, key) for key in keys], y, HEADING_SIZE_PT)
+        for entry in legend.entries:
+            y += LEGEND_ROW_MM
+            self._swatch(entry.color, y)
+            self._row([str(entry.number), "", entry.color.to_hex(), str(entry.cells)], y)
+        if legend.other_cells:
+            y += LEGEND_ROW_MM
+            self._row(["", "", text(self.lang, "legend.other"), str(legend.other_cells)], y)
+
+    def _row(self, values: list[str], y: float, size: float = BODY_SIZE_PT) -> None:
+        x = self.page.frame.content_x
+        for value, offset in zip(values, LEGEND_COLUMNS_MM, strict=True):
+            if value:
+                self.page.text(value, x + offset, y, size)
+
+    def _swatch(self, color: Rgb, y: float) -> None:
+        page, c = self.page, self.page.c
+        x = page.frame.content_x + LEGEND_COLUMNS_MM[1]
+        c.setStrokeColor(_BLACK)
+        c.setLineWidth(GRID_WIDTH_PT)
+        c.setFillColor(_color(color))
+        px, py = page.xy(x, y + (LEGEND_SWATCH_MM - LEGEND_ROW_MM) / 2 + 1)
+        c.rect(px, py, LEGEND_SWATCH_MM * mm, LEGEND_SWATCH_MM * mm, stroke=1, fill=1)
+
+
 class PdfRenderer:
     """Renders a `PapercraftDocument` into vector PDF bytes."""
 
@@ -405,7 +468,7 @@ class PdfRenderer:
             pdfmetrics.registerFont(TTFont(TEXT_FONT, str(TEXT_FONT_FILE)))
 
     def render(self, document: PapercraftDocument) -> bytes:
-        """Cover, printing guide, nets, assembly; byte-stable for equal input."""
+        """Cover, printing guide, nets, assembly, legend; byte-stable for equal input."""
         buf = io.BytesIO()
         frame = document.frame
         canvas = Canvas(buf, pagesize=(frame.width * mm, frame.height * mm), invariant=1)
@@ -420,6 +483,8 @@ class PdfRenderer:
             canvas.showPage()
         guide.steps(document.steps)
         canvas.showPage()
+        _LegendPainter(_Page(canvas, frame), document.lang).draw(document.legend)
+        canvas.showPage()
         canvas.save()
         return buf.getvalue()
 
@@ -427,7 +492,7 @@ class PdfRenderer:
         parts = ", ".join(part_name(doc.lang, p.net.part) for p in net_page.placements)
         number = page.c.getPageNumber()
         self._header(page, text(doc.lang, "page.net", parts=parts, page=number), doc.lang)
-        painter = _NetPainter(page, doc.grid_lines)
+        painter = _NetPainter(page, doc.grid_lines, doc.legend)
         for placement in net_page.placements:
             painter.draw(placement)
 

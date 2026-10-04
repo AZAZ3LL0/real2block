@@ -2,13 +2,16 @@
 
 import io
 from collections import Counter
+from dataclasses import replace
 
 import pytest
 from pypdf import PdfReader
+from pypdf.generic import ContentStream
 
 from real2block.domain.papercraft.document import PapercraftDocument
 from real2block.domain.papercraft.instructions import build_cover, build_steps
 from real2block.domain.papercraft.layout import NetPage, Paper, layout_pages
+from real2block.domain.papercraft.legend import PrintMode, prepare_skin
 from real2block.domain.papercraft.net import Segment, build_net_part
 from real2block.domain.papercraft.pdf import PdfRenderer
 from real2block.domain.papercraft.strings import Lang
@@ -31,13 +34,18 @@ def _pages(skin: Skin, paper: Paper, pixel_mm: float) -> tuple[NetPage, ...]:
 
 
 def _document(
-    skin: Skin, pages: tuple[NetPage, ...], grid: bool = True, lang: Lang = "en"
+    skin: Skin,
+    pages: tuple[NetPage, ...],
+    grid: bool = True,
+    lang: Lang = "en",
+    mode: PrintMode = "color",
 ) -> PapercraftDocument:
     return PapercraftDocument(
         frame=pages[0].frame,
         cover=build_cover(skin, "classic", 5.0),
         pages=pages,
         steps=build_steps("classic"),
+        legend=prepare_skin(skin, "classic", mode).legend,
         lang=lang,
         grid_lines=grid,
     )
@@ -129,7 +137,8 @@ def test_grid_lines_follow_option(reference_skin: Skin, grid: bool) -> None:
 def test_page_size_and_count(reference_skin: Skin, paper: Paper) -> None:
     pages = _pages(reference_skin, paper, 5.0)
     reader = _render(reference_skin, pages)
-    assert len(reader.pages) == NET_OFFSET + len(pages) + 1
+    # Assembly and legend follow the nets.
+    assert len(reader.pages) == NET_OFFSET + len(pages) + 2
     for page in reader.pages:
         box = page.mediabox
         assert (float(box.width), float(box.height)) == pytest.approx(PAPER_PT[paper], abs=0.1)
@@ -162,7 +171,8 @@ def test_page_order_cover_guide_nets_assembly(reference_skin: Skin) -> None:
     assert "50 мм" in texts[1]
     assert all("Развёртка" in t for t in texts[NET_OFFSET : NET_OFFSET + len(pages)])
     assert "стр. 3" in texts[NET_OFFSET]
-    assert [f"Шаг {i}." in texts[-1] for i in range(1, 7)] == [True] * 6
+    assert [f"Шаг {i}." in texts[-2] for i in range(1, 7)] == [True] * 6
+    assert "Легенда цветов" in texts[-1]
 
 
 def test_guide_page_has_line_legend_and_ruler(reference_skin: Skin) -> None:
@@ -173,3 +183,35 @@ def test_guide_page_has_line_legend_and_ruler(reference_skin: Skin) -> None:
     lengths = sorted(round(abs(b[0] - a[0]) + abs(b[1] - a[1]), 1) for a, b in cuts.elements())
     assert lengths[-1] == pytest.approx(50 * PT_PER_MM, abs=0.05)
     assert len(folds) >= 2  # a fold sample and the fold edge of the tab sample
+
+
+def _fills(reader: PdfReader, index: int) -> set[tuple[float, ...]]:
+    ops = ContentStream(reader.pages[index].get_contents(), reader).operations
+    return {tuple(round(float(v), 3) for v in operands) for operands, op in ops if op == b"rg"}
+
+
+def test_numbered_mode_prints_gray_cells_with_numbers(reference_skin: Skin) -> None:
+    prepared = prepare_skin(reference_skin, "classic", "numbered")
+    nets = [build_net_part(prepared.skin, p, "classic", 5.0) for p in PART_IDS]
+    pages = layout_pages(nets, "A4")
+    document = replace(_document(prepared.skin, pages, mode="numbered"), legend=prepared.legend)
+    reader = PdfReader(io.BytesIO(PdfRenderer().render(document)))
+    for index in range(NET_OFFSET, NET_OFFSET + len(pages)):
+        # Light gray cells, gray numbers, white label boxes, black text.
+        assert _fills(reader, index) <= {(0.9, 0.9, 0.9), (0.35, 0.35, 0.35), (1, 1, 1), (0, 0, 0)}
+    words = reader.pages[NET_OFFSET].extract_text().split()
+    assert {str(e.number) for e in prepared.legend.entries[:5]} <= set(words)
+
+
+@pytest.mark.parametrize("mode", ["color", "numbered"])
+def test_legend_page_lists_every_color(reference_skin: Skin, mode: PrintMode) -> None:
+    prepared = prepare_skin(reference_skin, "classic", mode)
+    pages = _pages(prepared.skin, "A4", 5.0)
+    document = replace(_document(prepared.skin, pages), legend=prepared.legend)
+    reader = PdfReader(io.BytesIO(PdfRenderer().render(document)))
+    legend_text = reader.pages[-1].extract_text()
+    for entry in prepared.legend.entries:
+        assert entry.color.to_hex() in legend_text
+        assert str(entry.cells) in legend_text
+    if prepared.legend.other_cells:
+        assert "other" in legend_text
