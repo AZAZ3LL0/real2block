@@ -1,7 +1,16 @@
-"""Color value object; hex strings exist only at the API boundary."""
+"""Color value object, Lab conversion and palette quantization.
+
+Hex strings exist only at the API boundary.
+"""
 
 import re
+from collections import Counter
+from collections.abc import Sequence
 from dataclasses import dataclass
+
+import cv2
+import numpy as np
+import numpy.typing as npt
 
 _HEX_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
@@ -33,3 +42,46 @@ class Rgb:
 
 TRANSPARENT_FILL = Rgb(0x7F, 0x7F, 0x7F)
 """Replacement for base pixels left transparent after flattening (tech.md §4.1)."""
+
+
+QUANTIZE_SEED = 1729
+"""Fixed k-means seed: equal skins must give equal palettes (tech.md §4.5)."""
+QUANTIZE_ATTEMPTS = 3
+_KMEANS_CRITERIA = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 50, 0.1)
+
+
+def to_lab(colors: Sequence[Rgb]) -> npt.NDArray[np.float32]:
+    """CIE Lab (D65) of each color as an (n, 3) array; L in 0..100."""
+    rgb = np.array([[(c.r, c.g, c.b) for c in colors]], dtype=np.float32) / 255
+    lab: npt.NDArray[np.float32] = cv2.cvtColor(rgb, cv2.COLOR_RGB2Lab)[0]
+    return lab
+
+
+def quantize(samples: Sequence[Rgb], max_colors: int) -> dict[Rgb, Rgb]:
+    """Map every sampled color to one of at most `max_colors` representatives.
+
+    Clusters come from k-means in Lab over all samples, so frequent colors weigh more.
+    Each cluster is represented by its most frequent member, which keeps exact colors
+    of large areas instead of averaged ones.
+    """
+    counts = Counter(samples)
+    unique = sorted(counts, key=lambda c: (c.r, c.g, c.b))
+    if len(unique) <= max_colors:
+        return {c: c for c in unique}
+    data = to_lab(samples)
+    cv2.setRNGSeed(QUANTIZE_SEED)
+    # Initial labels are ignored with k-means++ seeding; the stubs require an array.
+    initial = np.zeros((len(samples), 1), dtype=np.int32)
+    _, labels, _ = cv2.kmeans(
+        data, max_colors, initial, _KMEANS_CRITERIA, QUANTIZE_ATTEMPTS, cv2.KMEANS_PP_CENTERS
+    )
+    flat = np.asarray(labels).ravel()
+    cluster_of = {color: int(label) for color, label in zip(samples, flat, strict=True)}
+    members: dict[int, list[Rgb]] = {}
+    for color in unique:
+        members.setdefault(cluster_of[color], []).append(color)
+    mapping: dict[Rgb, Rgb] = {}
+    for group in members.values():
+        representative = max(group, key=lambda c: (counts[c], -c.r, -c.g, -c.b))
+        mapping.update({c: representative for c in group})
+    return mapping
