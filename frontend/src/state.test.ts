@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { initialState, reducer, type State } from "./state";
+import { SPEC } from "./test/spec";
 
 const skin = new Blob(["png"], { type: "image/png" });
 const imported: State = reducer(reducer(initialState, { type: "start" }), {
@@ -35,5 +36,27 @@ describe("reducer", () => {
   it("cancel and reset drop the skin", () => {
     expect(reducer(imported, { type: "cancelled" })).toEqual(initialState);
     expect(reducer(imported, { type: "reset" })).toEqual(initialState);
+  });
+
+  it("imported skins carry no spec", () => {
+    expect(imported.spec).toBeNull();
+  });
+
+  it("stores an edited spec and follows its model", () => {
+    const next = reducer(imported, { type: "setSpec", spec: { ...SPEC, model: "slim" } });
+    expect(next.spec).toEqual({ ...SPEC, model: "slim" });
+    expect(next.model).toBe("slim");
+  });
+
+  it("keeps the spec model in sync with the model switch", () => {
+    const withSpec = reducer(imported, { type: "setSpec", spec: SPEC });
+    expect(reducer(withSpec, { type: "setModel", model: "slim" }).spec?.model).toBe("slim");
+    expect(reducer(imported, { type: "setModel", model: "classic" }).spec).toBeNull();
+  });
+
+  it("replaces the skin with a restyled one and clears the error", () => {
+    const failed = reducer(imported, { type: "failed", code: "RATE_LIMITED" });
+    const restyled = new Blob(["new"], { type: "image/png" });
+    expect(reducer(failed, { type: "styled", skin: restyled })).toMatchObject({ skin: restyled, error: null });
   });
 });
