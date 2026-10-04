@@ -269,7 +269,8 @@ def test_uploads_leave_no_files_and_no_log_traces(reference_png: bytes) -> None:
         )
     finally:
         logging.getLogger().removeHandler(handler)
-    assert set(os.listdir(tmp)) == before
+    # Only new entries matter: other processes on the host may remove their own temp files.
+    assert set(os.listdir(tmp)) - before == set()
     logs = stream.getvalue()
     assert '"route": "/api/v1/papercraft"' in logs
     assert upload_name not in logs
