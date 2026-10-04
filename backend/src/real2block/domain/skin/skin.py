@@ -61,6 +61,22 @@ class Skin:
         """Pixels of one face as (h, w, 4), in texture orientation."""
         return _region(self._pixels, face_rect(part, face, layer, model))
 
+    def with_face(
+        self,
+        part: PartId,
+        face: FaceId,
+        pixels: Pixels,
+        layer: Layer = "base",
+        model: Model = "classic",
+    ) -> "Skin":
+        """Copy of the skin with one face replaced by (h, w, 4) pixels in texture orientation."""
+        rect = face_rect(part, face, layer, model)
+        if pixels.shape != (rect.h, rect.w, 4):
+            raise ValueError(f"expected face of shape {(rect.h, rect.w, 4)}, got {pixels.shape}")
+        out = self._pixels.copy()
+        _region(out, rect)[...] = pixels
+        return Skin(out)
+
     def rgb_at(self, x: int, y: int) -> Rgb:
         """Color of one texture pixel, alpha ignored."""
         r, g, b, _ = (int(c) for c in self._pixels[y, x])

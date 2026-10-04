@@ -4,13 +4,26 @@ import numpy as np
 import pytest
 
 from real2block.domain.color import Rgb
-from real2block.domain.skin.geometry import FACE_IDS, PART_IDS, FaceId, Model, face_rect
+from real2block.domain.skin.geometry import (
+    FACE_IDS,
+    PART_IDS,
+    FaceId,
+    Model,
+    PartId,
+    face_rect,
+)
 from real2block.domain.skin.io import convert_legacy, detect_model, normalize_skin
 from real2block.domain.skin.skin import Skin
 from tests.helpers import blank, png_bytes
 
 RED = (200, 10, 10, 255)
 BLUE = (10, 10, 200, 255)
+GRAY_FILL = (0x7F, 0x7F, 0x7F, 255)
+MODELS: tuple[Model, ...] = ("classic", "slim")
+LEGACY_LIMBS: tuple[tuple[PartId, PartId], ...] = (
+    ("left_arm", "right_arm"),
+    ("left_leg", "right_leg"),
+)
 
 
 def _opaque_base(model: Model = "classic") -> np.ndarray:
@@ -77,3 +90,24 @@ def test_normalize_warns_about_transparent_base() -> None:
 def test_png_encoding_is_deterministic() -> None:
     pixels = _opaque_base()
     assert Skin(pixels).to_png() == Skin(pixels.copy()).to_png()
+
+
+# Skin face access (tech.md §3: get/put faces)
+
+
+def test_with_face_replaces_only_that_face() -> None:
+    pixels = _opaque_base("slim")
+    original = Skin(pixels)
+    rect = face_rect("left_arm", "back", "overlay", "slim")
+    patch = np.full((rect.h, rect.w, 4), BLUE, dtype=np.uint8)
+    updated = original.with_face("left_arm", "back", patch, "overlay", "slim")
+    np.testing.assert_array_equal(updated.face("left_arm", "back", "overlay", "slim"), patch)
+    expected = pixels.copy()
+    expected[rect.y : rect.y + rect.h, rect.x : rect.x + rect.w] = BLUE
+    np.testing.assert_array_equal(updated.pixels, expected)
+    np.testing.assert_array_equal(original.pixels, pixels)
+
+
+def test_with_face_rejects_wrong_shape() -> None:
+    with pytest.raises(ValueError, match="shape"):
+        Skin(blank()).with_face("head", "front", np.zeros((8, 7, 4), dtype=np.uint8))
