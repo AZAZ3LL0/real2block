@@ -4,7 +4,8 @@ from dataclasses import dataclass
 from typing import Literal, Protocol
 
 from real2block.domain.errors import WarningCode
-from real2block.domain.papercraft.layout import NetPage, Paper, layout_pages
+from real2block.domain.papercraft.instructions import Cover, Step, build_cover, build_steps
+from real2block.domain.papercraft.layout import NetPage, PageFrame, Paper, layout_pages
 from real2block.domain.papercraft.net import build_net_part
 from real2block.domain.papercraft.strings import Lang
 from real2block.domain.skin.geometry import PART_IDS
@@ -27,10 +28,13 @@ class PrintOptions:
 
 
 @dataclass(frozen=True, slots=True)
-class NetDocument:
+class PapercraftDocument:
     """Everything the renderer needs; it computes no geometry itself."""
 
+    frame: PageFrame
+    cover: Cover
     pages: tuple[NetPage, ...]
+    steps: tuple[Step, ...]
     lang: Lang
     grid_lines: bool
 
@@ -46,7 +50,7 @@ class PapercraftResult:
 class DocumentRenderer(Protocol):
     """Turns a document model into PDF bytes."""
 
-    def render(self, document: NetDocument) -> bytes:
+    def render(self, document: PapercraftDocument) -> bytes:
         """Render the document."""
         ...
 
@@ -58,7 +62,7 @@ class PapercraftService:
         self._renderer = renderer
 
     def build(self, skin_png: bytes, options: PrintOptions) -> PapercraftResult:
-        """Validate the skin, prepare its pixels and render the net pages."""
+        """Validate the skin, prepare its pixels and render the whole PDF."""
         skin = load_print_skin(skin_png)
         model = resolve_model(skin, options.model)
         if options.flatten_overlay:
@@ -66,8 +70,11 @@ class PapercraftService:
         filled = skin.fill_transparent_base(model)
         warnings: tuple[WarningCode, ...] = ("TRANSPARENT_BASE_PIXELS",) if filled.filled else ()
         nets = [build_net_part(filled.skin, p, model, options.pixel_mm) for p in PART_IDS]
-        document = NetDocument(
+        document = PapercraftDocument(
+            frame=PageFrame.for_paper(options.paper),
+            cover=build_cover(filled.skin, model, options.pixel_mm),
             pages=layout_pages(nets, options.paper),
+            steps=build_steps(model),
             lang=options.lang,
             grid_lines=options.grid_lines,
         )
