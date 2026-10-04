@@ -1,4 +1,4 @@
-import type { ErrorCode, ImportedSkin, SkinModel, WarningCode } from "./api/client";
+import type { ErrorCode, ImportedSkin, PdfSettings, SkinModel, WarningCode } from "./api/client";
 
 export const STEPS = ["upload", "processing", "preview", "download"] as const;
 export type Step = (typeof STEPS)[number];
@@ -9,6 +9,7 @@ export interface State {
   model: SkinModel;
   warnings: WarningCode[];
   error: ErrorCode | null;
+  pdf: PdfSettings;
 }
 
 export type Action =
@@ -17,9 +18,13 @@ export type Action =
   | { type: "failed"; code: ErrorCode }
   | { type: "cancelled" }
   | { type: "setModel"; model: SkinModel }
-  | { type: "addWarnings"; warnings: readonly WarningCode[] }
+  | { type: "setPdf"; pdf: Partial<PdfSettings> }
+  | { type: "pdfReady"; warnings: readonly WarningCode[] }
   | { type: "goto"; step: "preview" | "download" }
   | { type: "reset" };
+
+/** Same defaults as the server's PapercraftOptions (tech.md §5.4). */
+export const DEFAULT_PDF: PdfSettings = { paper: "A4", pixel_mm: 5, mode: "color", grid_lines: true };
 
 export const initialState: State = {
   step: "upload",
@@ -27,6 +32,7 @@ export const initialState: State = {
   model: "classic",
   warnings: [],
   error: null,
+  pdf: DEFAULT_PDF,
 };
 
 function merge(a: readonly WarningCode[], b: readonly WarningCode[]): WarningCode[] {
@@ -45,8 +51,11 @@ export function reducer(state: State, action: Action): State {
       return initialState;
     case "setModel":
       return { ...state, model: action.model };
-    case "addWarnings":
-      return { ...state, warnings: merge(state.warnings, action.warnings) };
+    case "setPdf":
+      // An error about the previous settings no longer applies.
+      return { ...state, pdf: { ...state.pdf, ...action.pdf }, error: null };
+    case "pdfReady":
+      return { ...state, warnings: merge(state.warnings, action.warnings), error: null };
     case "goto":
       return state.skin ? { ...state, step: action.step, error: null } : state;
     case "reset":

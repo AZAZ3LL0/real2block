@@ -14,7 +14,14 @@ export function detectLang(language: string | undefined): Lang {
 interface I18n {
   lang: Lang;
   setLang: (lang: Lang) => void;
-  t: (key: MessageKey) => string;
+  t: (key: MessageKey, params?: Record<string, string | number>) => string;
+}
+
+export function format(message: string, params?: Record<string, string | number>): string {
+  if (!params) return message;
+  return message.replace(/\{(\w+)\}/g, (match, name: string) =>
+    name in params ? String(params[name]) : match,
+  );
 }
 
 const I18nContext = createContext<I18n | null>(null);
@@ -22,7 +29,7 @@ const I18nContext = createContext<I18n | null>(null);
 export function I18nProvider({ children, initial }: { children: ReactNode; initial?: Lang }) {
   const [lang, setLang] = useState<Lang>(initial ?? detectLang(navigator.language));
   const value = useMemo<I18n>(
-    () => ({ lang, setLang, t: (key) => MESSAGES[lang][key] }),
+    () => ({ lang, setLang, t: (key, params) => format(MESSAGES[lang][key], params) }),
     [lang],
   );
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
