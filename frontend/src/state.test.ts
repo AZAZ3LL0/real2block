@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { initialState, reducer, type State } from "./state";
+import { DEFAULT_PDF, initialState, reducer, type State } from "./state";
 import { SPEC } from "./test/spec";
 
 const skin = new Blob(["png"], { type: "image/png" });
@@ -28,9 +28,16 @@ describe("reducer", () => {
     expect(reducer(initialState, { type: "goto", step: "download" })).toBe(initialState);
   });
 
-  it("merges warnings without duplicates", () => {
-    const next = reducer(imported, { type: "addWarnings", warnings: ["TRANSPARENT_BASE_PIXELS", "PALETTE_REDUCED"] });
+  it("merges PDF warnings without duplicates and clears an old error", () => {
+    const failed = reducer(imported, { type: "failed", code: "RATE_LIMITED" });
+    const next = reducer(failed, { type: "pdfReady", warnings: ["TRANSPARENT_BASE_PIXELS", "PALETTE_REDUCED"] });
     expect(next.warnings).toEqual(["TRANSPARENT_BASE_PIXELS", "PALETTE_REDUCED"]);
+    expect(next.error).toBeNull();
+  });
+
+  it("clears an error when PDF settings change", () => {
+    const failed = reducer(imported, { type: "failed", code: "INVALID_OPTIONS" });
+    expect(reducer(failed, { type: "setPdf", pdf: { pixel_mm: 5 } }).error).toBeNull();
   });
 
   it("cancel and reset drop the skin", () => {
@@ -58,5 +65,12 @@ describe("reducer", () => {
     const failed = reducer(imported, { type: "failed", code: "RATE_LIMITED" });
     const restyled = new Blob(["new"], { type: "image/png" });
     expect(reducer(failed, { type: "styled", skin: restyled })).toMatchObject({ skin: restyled, error: null });
+  });
+
+  it("updates PDF settings field by field and resets them", () => {
+    const changed = reducer(imported, { type: "setPdf", pdf: { paper: "Letter" } });
+    const both = reducer(changed, { type: "setPdf", pdf: { pixel_mm: 6.5 } });
+    expect(both.pdf).toEqual({ ...DEFAULT_PDF, paper: "Letter", pixel_mm: 6.5 });
+    expect(reducer(both, { type: "reset" }).pdf).toEqual(DEFAULT_PDF);
   });
 });

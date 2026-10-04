@@ -14,7 +14,7 @@ from real2block.domain.stylize.base import SkinSpec as DomainSpec
 from real2block.domain.stylize.grids import TEMPLATES_DIR, TemplateError, load_template_dir
 from real2block.domain.stylize.roles import SYMBOLS
 from real2block.domain.stylize.template import TemplateStylizer, hair_template_name
-from tests.helpers import FIXTURES
+from tests.helpers import FIXTURES, decode_png
 
 MODELS: tuple[Model, ...] = get_args(Model)
 TEMPLATES = load_template_dir(TEMPLATES_DIR)
@@ -45,8 +45,8 @@ def reference(style: HairStyle, model: Model) -> DomainSpec:
 @pytest.mark.parametrize("model", MODELS)
 @pytest.mark.parametrize("style", HAIR_STYLES)
 def test_matches_golden_png(style: HairStyle, model: Model) -> None:
-    golden = (FIXTURES / f"stylize_{style}_{model}.png").read_bytes()
-    assert STYLIZER.render(reference(style, model)).to_png() == golden
+    golden = decode_png((FIXTURES / f"stylize_{style}_{model}.png").read_bytes())
+    np.testing.assert_array_equal(STYLIZER.render(reference(style, model)).pixels, golden)
 
 
 @pytest.mark.parametrize("model", MODELS)

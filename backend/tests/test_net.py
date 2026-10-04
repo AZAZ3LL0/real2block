@@ -1,13 +1,11 @@
 """Box nets from tech.md §4.2-4.3: golden rasters, orientation, tabs, sizes."""
 
-import io
 from collections import Counter
 
 import numpy as np
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
-from PIL import Image
 
 from real2block.domain.papercraft.net import (
     NetFace,
@@ -31,21 +29,16 @@ from real2block.domain.skin.geometry import (
     uv_rect,
 )
 from real2block.domain.skin.skin import Skin
-from tests.helpers import FIXTURES
+from tests.helpers import FIXTURES, decode_png
 
 sizes = st.integers(min_value=1, max_value=16)
-
-
-def _decode(data: bytes) -> np.ndarray:
-    with Image.open(io.BytesIO(data)) as img:
-        return np.asarray(img.convert("RGBA"))
 
 
 @pytest.mark.parametrize("part", PART_IDS)
 def test_golden_net(reference_skin: Skin, part: PartId) -> None:
     golden = (FIXTURES / f"reference_net_{part}.png").read_bytes()
     actual = render_debug_png(reference_skin, part, "classic")
-    np.testing.assert_array_equal(_decode(actual), _decode(golden))
+    np.testing.assert_array_equal(decode_png(actual), decode_png(golden))
 
 
 @given(sizes, sizes, sizes)
@@ -271,7 +264,7 @@ def test_tab_sides_do_not_cross(
 
 @pytest.mark.parametrize("part", ["right_arm", "left_arm"])
 def test_slim_debug_raster_matches_cell_map(reference_skin: Skin, part: PartId) -> None:
-    raster = _decode(render_debug_png(reference_skin, part, "slim"))
+    raster = decode_png(render_debug_png(reference_skin, part, "slim"))
     assert raster.shape[:2] == (2 * 4 + 12, 2 * 4 + 2 * 3)
     mapping = net_cell_map(part, "slim")
     for (x, y), (u, v) in mapping.items():
