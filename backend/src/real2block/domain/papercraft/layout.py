@@ -1,6 +1,6 @@
 """Page geometry and placement of nets on printable pages (tech.md §4.3)."""
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Literal
@@ -16,6 +16,8 @@ PAPER_SIZES_MM: Mapping[Paper, tuple[float, float]] = MappingProxyType(
 MARGIN_MM = 10.0
 HEADER_MM = 12.0
 RULER_MM = 50.0
+PART_GAP_MM = 8.0
+_EPS_MM = 1e-6
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,9 +62,52 @@ class NetPage:
     placements: tuple[Placement, ...]
 
 
-def place_single(net: NetPart, paper: Paper) -> NetPage:
-    """Put one net at the top-left of the content area; rotation is never applied."""
+def _sorted_by_height(nets: Sequence[NetPart]) -> list[NetPart]:
+    # Stable sort: equal heights keep the caller's part order.
+    return sorted(nets, key=lambda net: -net.height)
+
+
+class _Shelves:
+    """Shelf packer state for the page being filled."""
+
+    def __init__(self, frame: PageFrame) -> None:
+        self.frame = frame
+        self.placements: list[Placement] = []
+        self.x = frame.content_x
+        self.y = frame.content_y
+        self.shelf_h = 0.0
+
+    def fits_width(self, net: NetPart) -> bool:
+        return self.x + net.width <= self.frame.content_x + self.frame.content_w + _EPS_MM
+
+    def fits_height(self, net: NetPart) -> bool:
+        return self.y + net.height <= self.frame.content_y + self.frame.content_h + _EPS_MM
+
+    def new_shelf(self) -> None:
+        self.x = self.frame.content_x
+        self.y += self.shelf_h + PART_GAP_MM
+        self.shelf_h = 0.0
+
+    def place(self, net: NetPart) -> None:
+        self.placements.append(Placement(net, self.x, self.y))
+        self.x += net.width + PART_GAP_MM
+        self.shelf_h = max(self.shelf_h, net.height)
+
+
+def layout_pages(nets: Sequence[NetPart], paper: Paper) -> tuple[NetPage, ...]:
+    """Shelf-pack nets by decreasing height onto pages; parts are never rotated."""
     frame = PageFrame.for_paper(paper)
-    if net.width > frame.content_w or net.height > frame.content_h:
-        raise InvalidOptionsError(f"{net.part} net does not fit on {paper}")
-    return NetPage(frame, (Placement(net, frame.content_x, frame.content_y),))
+    pages: list[NetPage] = []
+    shelves = _Shelves(frame)
+    for net in _sorted_by_height(nets):
+        if net.width > frame.content_w + _EPS_MM or net.height > frame.content_h + _EPS_MM:
+            raise InvalidOptionsError(f"{net.part} net does not fit on {paper}")
+        if shelves.placements and not shelves.fits_width(net):
+            shelves.new_shelf()
+        if shelves.placements and not shelves.fits_height(net):
+            pages.append(NetPage(frame, tuple(shelves.placements)))
+            shelves = _Shelves(frame)
+        shelves.place(net)
+    if shelves.placements:
+        pages.append(NetPage(frame, tuple(shelves.placements)))
+    return tuple(pages)

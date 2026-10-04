@@ -68,7 +68,43 @@ describe("reference vertical", () => {
     });
     const pdfCall = fetchMock.mock.calls.find(([url]) => url.endsWith("/papercraft"));
     const options = (pdfCall?.[1]?.body as FormData).get("options");
-    expect(typeof options === "string" && JSON.parse(options)).toEqual({ model: "slim", lang: "en" });
+    expect(typeof options === "string" && JSON.parse(options)).toEqual({
+      model: "slim",
+      lang: "en",
+      paper: "A4",
+      pixel_mm: 5,
+      mode: "color",
+      grid_lines: true,
+    });
+  });
+
+  it("sends the chosen PDF settings and keeps them across steps", async () => {
+    const fetchMock = mockApi();
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    renderApp();
+    pickSkin();
+    await userEvent.click(await screen.findByRole("button", { name: "Next" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Letter" }));
+    await userEvent.click(screen.getByRole("radio", { name: "By numbers" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Pixel grid" }));
+    fireEvent.change(screen.getByLabelText("Cell size, mm"), { target: { value: "4" } });
+
+    await userEvent.click(screen.getByRole("button", { name: "Back" }));
+    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByRole("radio", { name: "Letter" })).toHaveAttribute("aria-checked", "true");
+
+    await userEvent.click(screen.getByRole("button", { name: "Download PDF" }));
+    await waitFor(() => {
+      expect(fetchMock.mock.calls.some(([url]) => url.endsWith("/papercraft"))).toBe(true);
+    });
+    const pdfCall = fetchMock.mock.calls.find(([url]) => url.endsWith("/papercraft"));
+    const options = (pdfCall?.[1]?.body as FormData).get("options");
+    expect(typeof options === "string" && JSON.parse(options)).toMatchObject({
+      paper: "Letter",
+      pixel_mm: 4,
+      mode: "numbered",
+      grid_lines: false,
+    });
   });
 
   it("shows the server error and stays on upload", async () => {

@@ -260,7 +260,7 @@ def test_openapi_publishes_skin_spec() -> None:
 # /papercraft
 
 
-def test_papercraft_returns_head_page(client: TestClient, reference_png: bytes) -> None:
+def test_papercraft_returns_full_document(client: TestClient, reference_png: bytes) -> None:
     response = _papercraft(client, reference_png)
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/pdf"
@@ -268,12 +268,22 @@ def test_papercraft_returns_head_page(client: TestClient, reference_png: bytes) 
     assert disposition == 'attachment; filename="real2block-figure.pdf"'
     assert response.content.startswith(b"%PDF")
     pdf = _pdf(response)
-    assert len(pdf.pages) == 1
+    # Cover, printing guide, two net pages, assembly, legend.
+    assert len(pdf.pages) == 6
     box = pdf.pages[0].mediabox
     assert (float(box.width), float(box.height)) == pytest.approx(A4_PT, abs=0.1)
-    page_text = pdf.pages[0].extract_text()
-    for letter in "ABCDEFG":
-        assert f"H-{letter}" in page_text
+    text = "".join(page.extract_text() for page in pdf.pages)
+    for code in ("H", "B", "RA", "LA", "RL", "LL"):
+        for letter in "ABCDEFG":
+            assert f"{code}-{letter}" in text
+
+
+def test_papercraft_rejects_cells_too_big_for_paper(
+    client: TestClient, reference_png: bytes
+) -> None:
+    response = _papercraft(client, reference_png, pixel_mm=8)
+    assert response.status_code == 422
+    assert _error_code(response) == "INVALID_OPTIONS"
 
 
 def test_papercraft_letter(client: TestClient, reference_png: bytes) -> None:
@@ -290,6 +300,15 @@ def test_papercraft_warns_about_transparent_base(client: TestClient) -> None:
     response = _papercraft(client, png_bytes(blank()))
     assert response.status_code == 200
     assert response.headers["x-real2block-warnings"] == "TRANSPARENT_BASE_PIXELS"
+
+
+def test_papercraft_numbered_reports_palette_reduced(
+    client: TestClient, reference_png: bytes
+) -> None:
+    numbered = _papercraft(client, reference_png, mode="numbered")
+    colored = _papercraft(client, reference_png, mode="color")
+    assert numbered.headers["x-real2block-warnings"] == "PALETTE_REDUCED"
+    assert "x-real2block-warnings" not in colored.headers
 
 
 @pytest.mark.parametrize(
@@ -336,7 +355,8 @@ def test_uploads_leave_no_files_and_no_log_traces(reference_png: bytes) -> None:
         )
     finally:
         logging.getLogger().removeHandler(handler)
-    assert set(os.listdir(tmp)) == before
+    # Only new entries matter: other processes on the host may remove their own temp files.
+    assert set(os.listdir(tmp)) - before == set()
     logs = stream.getvalue()
     assert '"route": "/api/v1/papercraft"' in logs
     assert upload_name not in logs
