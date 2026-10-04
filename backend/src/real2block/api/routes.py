@@ -8,7 +8,7 @@ from pydantic import ValidationError
 
 from real2block.api.deps import ContainerDep
 from real2block.api.errors import ERROR_RESPONSES
-from real2block.api.schemas import HealthResponse, NormalizeResponse, PapercraftOptions
+from real2block.api.schemas import HealthResponse, NormalizeResponse, PapercraftOptions, SkinSpec
 from real2block.domain.errors import InternalError, InvalidOptionsError
 from real2block.domain.papercraft.document import PrintOptions
 from real2block.domain.skin.io import normalize_skin
@@ -26,6 +26,19 @@ def healthz(container: ContainerDep) -> HealthResponse:
     if not container.face_model.is_ready():
         raise InternalError("face model not ready")
     return HealthResponse(status="ok")
+
+
+@router.post(
+    "/skin",
+    response_class=Response,
+    responses={200: {"content": {"image/png": {}}, "description": "64x64 RGBA skin"}},
+)
+def render_skin(container: ContainerDep, spec: SkinSpec) -> Response:
+    """Generate the skin PNG for a spec."""
+    stylizer = container.stylizers.get(spec.stylizer)
+    if stylizer is None:
+        raise InternalError(f"stylizer {spec.stylizer} is not available")
+    return Response(stylizer.render(spec.to_domain()).to_png(), media_type="image/png")
 
 
 @router.post("/skin/normalize")
