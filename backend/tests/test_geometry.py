@@ -3,7 +3,7 @@
 from hypothesis import given
 from hypothesis import strategies as st
 
-from blockfold.domain.skin.geometry import (
+from real2block.domain.skin.geometry import (
     FACE_IDS,
     LAYERS,
     PART_IDS,

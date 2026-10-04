@@ -8,22 +8,22 @@ from fastapi import FastAPI
 from starlette.formparsers import MultiPartParser
 from starlette.middleware.cors import CORSMiddleware
 
-from blockfold.api.deps import Container, HeavyRunner, ReadinessProbe
-from blockfold.api.errors import install_error_handlers
-from blockfold.api.middleware import (
+from real2block.api.deps import Container, HeavyRunner, ReadinessProbe
+from real2block.api.errors import install_error_handlers
+from real2block.api.middleware import (
     BodyLimitMiddleware,
     RateLimitMiddleware,
     RequestContextMiddleware,
     SecurityHeadersMiddleware,
 )
-from blockfold.api.routes import API_PREFIX, WARNINGS_HEADER, router
-from blockfold.api.schemas import PapercraftOptions
-from blockfold.config import Settings
-from blockfold.domain.papercraft.document import PapercraftService
-from blockfold.domain.papercraft.pdf import PdfRenderer
-from blockfold.domain.vision.face import YuNetModel
-from blockfold.domain.vision.loader import configure_pillow
-from blockfold.log import configure_logging
+from real2block.api.routes import API_PREFIX, WARNINGS_HEADER, router
+from real2block.api.schemas import PapercraftOptions
+from real2block.config import Settings
+from real2block.domain.papercraft.document import PapercraftService
+from real2block.domain.papercraft.pdf import PdfRenderer
+from real2block.domain.vision.face import YuNetModel
+from real2block.domain.vision.loader import configure_pillow
+from real2block.log import configure_logging
 
 SKIN_BODY_LIMIT = 16 * 1024
 UPLOAD_BODY_LIMIT = 64 * 1024
@@ -78,7 +78,7 @@ def _add_middleware(app: FastAPI, settings: Settings) -> None:
     app.add_middleware(SecurityHeadersMiddleware, hsts=settings.is_prod)
 
 
-class BlockfoldApp(FastAPI):
+class Real2blockApp(FastAPI):
     """FastAPI app whose OpenAPI also lists models sent inside multipart fields."""
 
     def openapi(self) -> dict[str, Any]:
@@ -102,7 +102,7 @@ def app_factory(
         papercraft=PapercraftService(PdfRenderer()),
         heavy=HeavyRunner(),
     )
-    app = BlockfoldApp(title="Blockfold API", version="1", docs_url=None, redoc_url=None)
+    app = Real2blockApp(title="real2block API", version="1", docs_url=None, redoc_url=None)
     app.state.container = container
     install_error_handlers(app)
     app.include_router(router)

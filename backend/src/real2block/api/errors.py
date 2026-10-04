@@ -8,9 +8,9 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from blockfold.api.schemas import ErrorBody, ErrorResponse
-from blockfold.domain.errors import BlockfoldError, ErrorCode
-from blockfold.log import request_id_var
+from real2block.api.schemas import ErrorBody, ErrorResponse
+from real2block.domain.errors import ErrorCode, Real2blockError
+from real2block.log import request_id_var
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +75,7 @@ def _validation_code(exc: RequestValidationError) -> ErrorCode:
 
 
 async def _domain_handler(_: Request, exc: Exception) -> JSONResponse:
-    if not isinstance(exc, BlockfoldError):
+    if not isinstance(exc, Real2blockError):
         raise exc
     level = logging.ERROR if exc.code == "INTERNAL" else logging.INFO
     logger.log(level, "domain error: %s", exc.detail, extra={"codes": [exc.code]})
@@ -92,5 +92,5 @@ async def _validation_handler(_: Request, exc: Exception) -> JSONResponse:
 
 def install_error_handlers(app: FastAPI) -> None:
     """Register the single error mapping for the app."""
-    app.add_exception_handler(BlockfoldError, _domain_handler)
+    app.add_exception_handler(Real2blockError, _domain_handler)
     app.add_exception_handler(RequestValidationError, _validation_handler)

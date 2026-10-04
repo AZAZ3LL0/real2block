@@ -8,8 +8,8 @@ from typing import Annotated, Protocol
 from fastapi import Depends, Request
 from starlette.concurrency import run_in_threadpool
 
-from blockfold.domain.errors import InternalError
-from blockfold.domain.papercraft.document import PapercraftService
+from real2block.domain.errors import InternalError
+from real2block.domain.papercraft.document import PapercraftService
 
 HEAVY_TIMEOUT_S = 10.0
 

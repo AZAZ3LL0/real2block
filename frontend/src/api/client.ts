@@ -8,7 +8,7 @@ export type PapercraftOptions = Schemas["PapercraftOptions"];
 export type SkinModel = NormalizeResponse["model"];
 
 const BASE = "/api/v1";
-const WARNINGS_HEADER = "X-Blockfold-Warnings";
+const WARNINGS_HEADER = "X-Real2block-Warnings";
 
 export class ApiError extends Error {
   constructor(readonly code: ErrorCode) {

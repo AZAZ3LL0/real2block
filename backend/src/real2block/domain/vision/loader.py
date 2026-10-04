@@ -6,9 +6,9 @@ import warnings
 import numpy as np
 from PIL import Image
 
-from blockfold.domain.errors import BlockfoldError, InvalidSkinError, UnsupportedFormatError
-from blockfold.domain.skin.geometry import LEGACY_HEIGHT, SKIN_SIZE
-from blockfold.domain.skin.skin import Pixels
+from real2block.domain.errors import InvalidSkinError, Real2blockError, UnsupportedFormatError
+from real2block.domain.skin.geometry import LEGACY_HEIGHT, SKIN_SIZE
+from real2block.domain.skin.skin import Pixels
 
 MAX_IMAGE_PIXELS = 40_000_000
 PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
@@ -41,7 +41,7 @@ def load_skin_png(data: bytes, sizes: frozenset[tuple[int, int]] = SKIN_SIZES) -
             if getattr(img, "is_animated", False):
                 raise InvalidSkinError("animated PNG")
             rgba = img.convert("RGBA")
-    except BlockfoldError:
+    except Real2blockError:
         raise
     except _DECODE_ERRORS as exc:
         raise InvalidSkinError("cannot decode PNG") from exc

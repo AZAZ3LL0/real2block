@@ -1,4 +1,4 @@
-# Blockfold
+# real2block
 
 Photo → Minecraft skin 64×64 → printable papercraft PDF with assembly instructions.
 
@@ -12,7 +12,7 @@ uv sync
 uv run ruff check . && uv run ruff format --check .
 uv run mypy --strict src
 uv run pytest -q
-uv run uvicorn blockfold.main:app_factory --factory --reload --port 8000
+uv run uvicorn real2block.main:app_factory --factory --reload --port 8000
 ```
 
 Configuration lives in `backend/.env` (see `backend/.env.example`). The YuNet model in `backend/models/` is checked against `SHA256SUMS` on startup.

@@ -9,8 +9,8 @@ from typing import Literal
 import numpy as np
 from PIL import Image
 
-from blockfold.domain.color import Rgb
-from blockfold.domain.skin.geometry import (
+from real2block.domain.color import Rgb
+from real2block.domain.skin.geometry import (
     PARTS,
     BoxSpec,
     FaceId,
@@ -20,7 +20,7 @@ from blockfold.domain.skin.geometry import (
     part_box,
     uv_rect,
 )
-from blockfold.domain.skin.skin import Skin
+from real2block.domain.skin.skin import Skin
 
 Side = Literal["N", "S", "W", "E"]
 

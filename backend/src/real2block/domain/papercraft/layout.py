@@ -5,8 +5,8 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Literal
 
-from blockfold.domain.errors import InvalidOptionsError
-from blockfold.domain.papercraft.net import NetPart
+from real2block.domain.errors import InvalidOptionsError
+from real2block.domain.papercraft.net import NetPart
 
 Paper = Literal["A4", "Letter"]
 

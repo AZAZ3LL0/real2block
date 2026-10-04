@@ -13,8 +13,8 @@ import { Preview } from "./steps/Preview";
 import { Processing } from "./steps/Processing";
 import { Upload } from "./steps/Upload";
 
-const PDF_NAME = "blockfold-figure.pdf";
-const PNG_NAME = "blockfold-skin.png";
+const PDF_NAME = "real2block-figure.pdf";
+const PNG_NAME = "real2block-skin.png";
 
 function isAbort(err: unknown): boolean {
   return err instanceof DOMException && err.name === "AbortError";

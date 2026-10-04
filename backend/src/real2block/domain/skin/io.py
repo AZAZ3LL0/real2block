@@ -5,8 +5,8 @@ from typing import Literal
 
 import numpy as np
 
-from blockfold.domain.errors import WarningCode
-from blockfold.domain.skin.geometry import (
+from real2block.domain.errors import WarningCode
+from real2block.domain.skin.geometry import (
     FACE_IDS,
     LEGACY_HEIGHT,
     LEGACY_MIRRORS,
@@ -18,8 +18,8 @@ from blockfold.domain.skin.geometry import (
     Model,
     face_rect,
 )
-from blockfold.domain.skin.skin import Pixels, Skin
-from blockfold.domain.vision.loader import load_skin_png
+from real2block.domain.skin.skin import Pixels, Skin
+from real2block.domain.vision.loader import load_skin_png
 
 ModelChoice = Literal["classic", "slim", "auto"]
 

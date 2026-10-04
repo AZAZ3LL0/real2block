@@ -27,7 +27,7 @@ WarningCode = Literal[
 ]
 
 
-class BlockfoldError(Exception):
+class Real2blockError(Exception):
     """Base domain error carrying a public error code."""
 
     code: ErrorCode = "INTERNAL"
@@ -37,37 +37,37 @@ class BlockfoldError(Exception):
         self.detail = detail
 
 
-class FileTooLargeError(BlockfoldError):
+class FileTooLargeError(Real2blockError):
     """Request body exceeds the route limit."""
 
     code = "FILE_TOO_LARGE"
 
 
-class UnsupportedFormatError(BlockfoldError):
+class UnsupportedFormatError(Real2blockError):
     """File is not one of the accepted image formats."""
 
     code = "UNSUPPORTED_FORMAT"
 
 
-class InvalidSkinError(BlockfoldError):
+class InvalidSkinError(Real2blockError):
     """Skin image is malformed or has wrong dimensions."""
 
     code = "INVALID_SKIN"
 
 
-class InvalidOptionsError(BlockfoldError):
+class InvalidOptionsError(Real2blockError):
     """Papercraft options failed validation."""
 
     code = "INVALID_OPTIONS"
 
 
-class RateLimitedError(BlockfoldError):
+class RateLimitedError(Real2blockError):
     """Client exceeded the route rate limit."""
 
     code = "RATE_LIMITED"
 
 
-class InternalError(BlockfoldError):
+class InternalError(Real2blockError):
     """Unexpected failure, including heavy-call timeouts."""
 
     code = "INTERNAL"

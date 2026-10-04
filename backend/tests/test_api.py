@@ -17,11 +17,11 @@ from httpx2 import Response
 from PIL import Image
 from pypdf import PdfReader
 
-from blockfold.api.deps import Container
-from blockfold.config import Settings
-from blockfold.domain.papercraft.document import PapercraftResult, PrintOptions
-from blockfold.log import JsonFormatter
-from blockfold.main import app_factory
+from real2block.api.deps import Container
+from real2block.config import Settings
+from real2block.domain.papercraft.document import PapercraftResult, PrintOptions
+from real2block.log import JsonFormatter
+from real2block.main import app_factory
 from tests.helpers import blank, png_bytes
 
 API = "/api/v1"
@@ -179,7 +179,7 @@ def test_papercraft_returns_head_page(client: TestClient, reference_png: bytes) 
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/pdf"
     disposition = response.headers["content-disposition"]
-    assert disposition == 'attachment; filename="blockfold-figure.pdf"'
+    assert disposition == 'attachment; filename="real2block-figure.pdf"'
     assert response.content.startswith(b"%PDF")
     pdf = _pdf(response)
     assert len(pdf.pages) == 1
@@ -203,7 +203,7 @@ def test_papercraft_is_deterministic(client: TestClient, reference_png: bytes) -
 def test_papercraft_warns_about_transparent_base(client: TestClient) -> None:
     response = _papercraft(client, png_bytes(blank()))
     assert response.status_code == 200
-    assert response.headers["x-blockfold-warnings"] == "TRANSPARENT_BASE_PIXELS"
+    assert response.headers["x-real2block-warnings"] == "TRANSPARENT_BASE_PIXELS"
 
 
 @pytest.mark.parametrize(

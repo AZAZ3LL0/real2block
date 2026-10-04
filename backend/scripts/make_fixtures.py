@@ -8,9 +8,9 @@ from pathlib import Path
 
 import numpy as np
 
-from blockfold.domain.papercraft.net import render_debug_png
-from blockfold.domain.skin.geometry import FACE_IDS, PART_IDS, face_rect
-from blockfold.domain.skin.skin import Skin
+from real2block.domain.papercraft.net import render_debug_png
+from real2block.domain.skin.geometry import FACE_IDS, PART_IDS, face_rect
+from real2block.domain.skin.skin import Skin
 
 FIXTURES = Path(__file__).resolve().parents[1] / "tests" / "fixtures"
 MARKER_FIRST = (255, 255, 255, 255)

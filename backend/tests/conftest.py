@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from blockfold.domain.skin.skin import Skin
+from real2block.domain.skin.skin import Skin
 from tests.helpers import FIXTURES
 
 

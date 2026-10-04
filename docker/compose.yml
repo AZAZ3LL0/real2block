@@ -1,11 +1,11 @@
-name: blockfold
+name: real2block
 
 services:
   api:
     build:
       context: ..
       dockerfile: docker/Dockerfile.api
-    image: blockfold-api
+    image: real2block-api
     env_file:
       - path: ../backend/.env
         required: false
@@ -29,7 +29,7 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.web
       target: web
-    image: blockfold-web
+    image: real2block-web
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:-:80}
     ports:

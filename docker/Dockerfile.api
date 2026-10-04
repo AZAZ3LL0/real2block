@@ -18,5 +18,5 @@ ENV PATH=/app/.venv/bin:$PATH PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 USER app
 EXPOSE 8000
 # Only Caddy reaches this port, so its X-Forwarded-For is trusted for rate limiting.
-CMD ["uvicorn", "blockfold.main:app_factory", "--factory", "--host", "0.0.0.0", "--port", "8000", \
+CMD ["uvicorn", "real2block.main:app_factory", "--factory", "--host", "0.0.0.0", "--port", "8000", \
      "--proxy-headers", "--forwarded-allow-ips=*", "--no-access-log"]

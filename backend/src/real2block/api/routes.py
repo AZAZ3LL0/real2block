@@ -6,16 +6,16 @@ from typing import Annotated
 from fastapi import APIRouter, File, Form, Response, UploadFile
 from pydantic import ValidationError
 
-from blockfold.api.deps import ContainerDep
-from blockfold.api.errors import ERROR_RESPONSES
-from blockfold.api.schemas import HealthResponse, NormalizeResponse, PapercraftOptions
-from blockfold.domain.errors import InternalError, InvalidOptionsError
-from blockfold.domain.papercraft.document import PrintOptions
-from blockfold.domain.skin.io import normalize_skin
+from real2block.api.deps import ContainerDep
+from real2block.api.errors import ERROR_RESPONSES
+from real2block.api.schemas import HealthResponse, NormalizeResponse, PapercraftOptions
+from real2block.domain.errors import InternalError, InvalidOptionsError
+from real2block.domain.papercraft.document import PrintOptions
+from real2block.domain.skin.io import normalize_skin
 
 API_PREFIX = "/api/v1"
-PDF_FILENAME = "blockfold-figure.pdf"
-WARNINGS_HEADER = "X-Blockfold-Warnings"
+PDF_FILENAME = "real2block-figure.pdf"
+WARNINGS_HEADER = "X-Real2block-Warnings"
 
 router = APIRouter(prefix=API_PREFIX, responses=ERROR_RESPONSES)
 

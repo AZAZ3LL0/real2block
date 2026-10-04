@@ -3,10 +3,10 @@
 import numpy as np
 import pytest
 
-from blockfold.domain.color import Rgb
-from blockfold.domain.skin.geometry import FACE_IDS, PART_IDS, FaceId, Model, face_rect
-from blockfold.domain.skin.io import convert_legacy, detect_model, normalize_skin
-from blockfold.domain.skin.skin import Skin
+from real2block.domain.color import Rgb
+from real2block.domain.skin.geometry import FACE_IDS, PART_IDS, FaceId, Model, face_rect
+from real2block.domain.skin.io import convert_legacy, detect_model, normalize_skin
+from real2block.domain.skin.skin import Skin
 from tests.helpers import blank, png_bytes
 
 RED = (200, 10, 10, 255)

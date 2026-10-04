@@ -3,11 +3,11 @@
 from dataclasses import dataclass
 from typing import Literal, Protocol
 
-from blockfold.domain.errors import WarningCode
-from blockfold.domain.papercraft.layout import NetPage, Paper, place_single
-from blockfold.domain.papercraft.net import build_net_part
-from blockfold.domain.papercraft.strings import Lang
-from blockfold.domain.skin.io import ModelChoice, load_print_skin, resolve_model
+from real2block.domain.errors import WarningCode
+from real2block.domain.papercraft.layout import NetPage, Paper, place_single
+from real2block.domain.papercraft.net import build_net_part
+from real2block.domain.papercraft.strings import Lang
+from real2block.domain.skin.io import ModelChoice, load_print_skin, resolve_model
 
 PrintMode = Literal["color", "numbered"]
 

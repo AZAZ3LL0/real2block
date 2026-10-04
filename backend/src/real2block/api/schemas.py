@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from blockfold.domain.errors import ErrorCode, WarningCode
+from real2block.domain.errors import ErrorCode, WarningCode
 
 
 class StrictModel(BaseModel):

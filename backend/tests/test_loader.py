@@ -7,8 +7,8 @@ import zlib
 import pytest
 from PIL import Image
 
-from blockfold.domain.errors import BlockfoldError, InvalidSkinError, UnsupportedFormatError
-from blockfold.domain.vision.loader import PNG_MAGIC, configure_pillow, load_skin_png
+from real2block.domain.errors import InvalidSkinError, Real2blockError, UnsupportedFormatError
+from real2block.domain.vision.loader import PNG_MAGIC, configure_pillow, load_skin_png
 from tests.helpers import blank, png_bytes
 
 
@@ -54,7 +54,7 @@ def _apng() -> bytes:
     ],
     ids=["jpeg", "gif", "63x64", "64x48", "bomb", "garbage", "truncated", "apng"],
 )
-def test_rejects(data: bytes, error: type[BlockfoldError]) -> None:
+def test_rejects(data: bytes, error: type[Real2blockError]) -> None:
     with pytest.raises(error):
         load_skin_png(data)
 

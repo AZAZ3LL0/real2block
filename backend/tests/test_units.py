@@ -8,11 +8,11 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from blockfold.api.deps import HeavyRunner
-from blockfold.api.middleware import TokenBucket
-from blockfold.config import Settings
-from blockfold.domain.errors import InternalError
-from blockfold.domain.vision.face import ModelIntegrityError, YuNetModel
+from real2block.api.deps import HeavyRunner
+from real2block.api.middleware import TokenBucket
+from real2block.config import Settings
+from real2block.domain.errors import InternalError
+from real2block.domain.vision.face import ModelIntegrityError, YuNetModel
 
 MODEL = Path("models/face_detection_yunet_2023mar.onnx")
 

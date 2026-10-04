@@ -66,7 +66,7 @@ jobs:
       - name: Start API
         working-directory: backend
         run: |
-          .venv/bin/uvicorn blockfold.main:app_factory --factory --port 8000 &
+          .venv/bin/uvicorn real2block.main:app_factory --factory --port 8000 &
           echo $! > "$RUNNER_TEMP/api.pid"
           for _ in $(seq 1 30); do curl -fs localhost:8000/api/v1/healthz && exit 0; sleep 1; done
           exit 1

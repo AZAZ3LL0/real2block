@@ -36,7 +36,7 @@ describe("api client", () => {
   });
 
   it("sends options as JSON and reads warnings header", async () => {
-    respond("%PDF-1.4", { status: 200, headers: { "X-Blockfold-Warnings": "TRANSPARENT_BASE_PIXELS" } });
+    respond("%PDF-1.4", { status: 200, headers: { "X-Real2block-Warnings": "TRANSPARENT_BASE_PIXELS" } });
     const result = await papercraft(new Blob(["png"]), { model: "classic", lang: "en" });
     expect(result.warnings).toEqual(["TRANSPARENT_BASE_PIXELS"]);
     const init = vi.mocked(fetch).mock.calls[0]?.[1];

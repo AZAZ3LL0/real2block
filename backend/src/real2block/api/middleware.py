@@ -9,11 +9,11 @@ from dataclasses import dataclass
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from blockfold.api.errors import error_response
-from blockfold.domain.errors import ErrorCode
-from blockfold.log import request_id_var
+from real2block.api.errors import error_response
+from real2block.domain.errors import ErrorCode
+from real2block.log import request_id_var
 
-logger = logging.getLogger("blockfold.access")
+logger = logging.getLogger("real2block.access")
 
 Clock = Callable[[], float]
 

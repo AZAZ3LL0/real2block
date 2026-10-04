@@ -8,14 +8,14 @@ from hypothesis import given
 from hypothesis import strategies as st
 from PIL import Image
 
-from blockfold.domain.papercraft.net import (
+from real2block.domain.papercraft.net import (
     box_cell_map,
     build_net_part,
     net_faces,
     render_debug_png,
 )
-from blockfold.domain.skin.geometry import FACE_IDS, PART_IDS, BoxSpec, PartId, face_rect, uv_rect
-from blockfold.domain.skin.skin import Skin
+from real2block.domain.skin.geometry import FACE_IDS, PART_IDS, BoxSpec, PartId, face_rect, uv_rect
+from real2block.domain.skin.skin import Skin
 from tests.helpers import FIXTURES
 
 sizes = st.integers(min_value=1, max_value=16)

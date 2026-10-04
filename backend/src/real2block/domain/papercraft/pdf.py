@@ -9,13 +9,13 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen.canvas import Canvas
 
-from blockfold.domain.color import Rgb
-from blockfold.domain.papercraft.document import NetDocument
-from blockfold.domain.papercraft.layout import RULER_MM, NetPage, PageFrame, Placement
-from blockfold.domain.papercraft.net import Label, NetPart, NetTab, Point
-from blockfold.domain.papercraft.strings import Lang, part_name, text
+from real2block.domain.color import Rgb
+from real2block.domain.papercraft.document import NetDocument
+from real2block.domain.papercraft.layout import RULER_MM, NetPage, PageFrame, Placement
+from real2block.domain.papercraft.net import Label, NetPart, NetTab, Point
+from real2block.domain.papercraft.strings import Lang, part_name, text
 
-HEADING_FONT = "BlockfoldPixel"
+HEADING_FONT = "Real2blockPixel"
 HEADING_FONT_FILE = Path(__file__).parent / "fonts" / "PressStart2P-Regular.ttf"
 LABEL_FONT = "Helvetica-Bold"
 

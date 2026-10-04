@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Literal
 
-from blockfold.domain.skin.geometry import PartId
+from real2block.domain.skin.geometry import PartId
 
 Lang = Literal["ru", "en"]
 
@@ -12,7 +12,7 @@ _STRINGS: Mapping[Lang, Mapping[str, str]] = MappingProxyType(
     {
         "ru": MappingProxyType(
             {
-                "doc.title": "Blockfold — бумажная фигурка",
+                "doc.title": "real2block — бумажная фигурка",
                 "page.net": "Развёртка: {parts} — стр. {page}",
                 "ruler": "50 мм",
                 "part.head": "голова",
@@ -25,7 +25,7 @@ _STRINGS: Mapping[Lang, Mapping[str, str]] = MappingProxyType(
         ),
         "en": MappingProxyType(
             {
-                "doc.title": "Blockfold — paper figure",
+                "doc.title": "real2block — paper figure",
                 "page.net": "Net: {parts} — page {page}",
                 "ruler": "50 mm",
                 "part.head": "head",

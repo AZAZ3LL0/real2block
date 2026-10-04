@@ -7,8 +7,8 @@ import numpy as np
 import numpy.typing as npt
 from PIL import Image
 
-from blockfold.domain.color import TRANSPARENT_FILL, Rgb
-from blockfold.domain.skin.geometry import (
+from real2block.domain.color import TRANSPARENT_FILL, Rgb
+from real2block.domain.skin.geometry import (
     FACE_IDS,
     PART_IDS,
     SKIN_SIZE,
