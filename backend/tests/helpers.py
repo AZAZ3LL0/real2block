@@ -19,6 +19,12 @@ def png_bytes(pixels: npt.NDArray[np.uint8]) -> bytes:
     return buf.getvalue()
 
 
+def decode_png(data: bytes) -> npt.NDArray[np.uint8]:
+    """RGBA pixels of a PNG; goldens compare pixels because zlib output varies by build."""
+    with Image.open(io.BytesIO(data)) as img:
+        return np.asarray(img.convert("RGBA"), dtype=np.uint8)
+
+
 def blank(width: int = 64, height: int = 64) -> npt.NDArray[np.uint8]:
     return np.zeros((height, width, 4), dtype=np.uint8)
 

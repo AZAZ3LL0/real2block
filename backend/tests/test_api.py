@@ -22,7 +22,7 @@ from real2block.config import Settings
 from real2block.domain.papercraft.document import PapercraftResult, PrintOptions
 from real2block.log import JsonFormatter
 from real2block.main import app_factory
-from tests.helpers import FIXTURES, blank, png_bytes
+from tests.helpers import FIXTURES, blank, decode_png, png_bytes
 
 API = "/api/v1"
 A4_PT = (595.28, 841.89)
@@ -189,18 +189,21 @@ def test_skin_returns_png_matching_golden(client: TestClient) -> None:
     assert response.headers["content-type"] == "image/png"
     with Image.open(io.BytesIO(response.content)) as img:
         assert (img.size, img.mode) == ((64, 64), "RGBA")
-    assert response.content == (FIXTURES / "stylize_long_slim.png").read_bytes()
+    golden = decode_png((FIXTURES / "stylize_long_slim.png").read_bytes())
+    np.testing.assert_array_equal(decode_png(response.content), golden)
 
 
 def test_skin_defaults_to_classic_short(client: TestClient) -> None:
     response = client.post(f"{API}/skin", json=_spec())
-    assert response.content == (FIXTURES / "stylize_short_classic.png").read_bytes()
+    golden = decode_png((FIXTURES / "stylize_short_classic.png").read_bytes())
+    np.testing.assert_array_equal(decode_png(response.content), golden)
 
 
 def test_skin_accepts_lower_case_hex(client: TestClient) -> None:
     palette = {role: value.lower() for role, value in _palette().items()}
     response = client.post(f"{API}/skin", json=_spec(palette=palette))
-    assert response.content == (FIXTURES / "stylize_short_classic.png").read_bytes()
+    golden = decode_png((FIXTURES / "stylize_short_classic.png").read_bytes())
+    np.testing.assert_array_equal(decode_png(response.content), golden)
 
 
 def test_skin_ignores_face_front_for_template(client: TestClient) -> None:
