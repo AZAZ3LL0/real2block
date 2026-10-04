@@ -7,6 +7,7 @@ import { I18nProvider } from "./i18n";
 vi.mock("skinview3d", () => ({
   SkinViewer: class {
     playerObject = { rotation: { y: 0 } };
+    resetCameraPose = vi.fn();
     loadSkin = vi.fn(() => Promise.resolve());
     dispose = vi.fn();
   },
