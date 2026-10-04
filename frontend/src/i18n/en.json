@@ -10,8 +10,6 @@
   "upload.skinHint": "PNG 64×64 or 64×32, up to 64 KB",
   "upload.drop": "Drop a file here or",
   "upload.choose": "choose a file",
-  "upload.wrongType": "A PNG file is required",
-  "upload.tooLarge": "The file is too large",
   "processing.label": "Processing the skin…",
   "processing.cancel": "Cancel",
   "preview.model": "Model",

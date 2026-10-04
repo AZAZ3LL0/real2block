@@ -10,8 +10,6 @@
   "upload.skinHint": "PNG 64×64 или 64×32, до 64 КБ",
   "upload.drop": "Перетащите файл сюда или",
   "upload.choose": "выберите файл",
-  "upload.wrongType": "Нужен PNG-файл",
-  "upload.tooLarge": "Файл слишком большой",
   "processing.label": "Обрабатываем скин…",
   "processing.cancel": "Отмена",
   "preview.model": "Модель",

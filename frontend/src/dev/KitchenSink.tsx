@@ -6,7 +6,7 @@ import { ColorField } from "../components/ColorField";
 import { FileDrop } from "../components/FileDrop";
 import { SegmentedControl } from "../components/SegmentedControl";
 import { Select } from "../components/Select";
-import { SkinViewer, type ViewSide } from "../components/SkinViewer";
+import { SkinViewer, type ViewRequest } from "../components/SkinViewer";
 import { Slider } from "../components/Slider";
 import { Spinner } from "../components/Spinner";
 import { Stepper } from "../components/Stepper";
@@ -78,7 +78,7 @@ function Controls() {
 
 export function KitchenSink() {
   const skin = useDemoSkin();
-  const [side, setSide] = useState<ViewSide>("front");
+  const [view, setView] = useState<ViewRequest>({ side: "front" });
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 p-4 sm:p-8">
       <h1 className="font-pixel text-lg">Kitchen sink</h1>
@@ -94,8 +94,8 @@ export function KitchenSink() {
         <Spinner label="Working…" />
       </Section>
       <Section title="SkinViewer">
-        <SegmentedControl label="Side" value={side} onChange={setSide} options={[{ value: "front", label: "Front" }, { value: "back", label: "Back" }]} />
-        {skin && <SkinViewer skin={skin} model="classic" side={side} label="Demo skin" size={240} />}
+        <SegmentedControl label="Side" value={view.side} onChange={(side) => { setView({ side }); }} options={[{ value: "front", label: "Front" }, { value: "back", label: "Back" }]} />
+        {skin && <SkinViewer skin={skin} model="classic" view={view} label="Demo skin" size={240} />}
       </Section>
     </main>
   );
