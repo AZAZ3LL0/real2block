@@ -77,9 +77,9 @@ function useSkinFlow() {
   const downloadPdf = () => {
     if (!state.skin) return;
     setPdfBusy(true);
-    papercraft(state.skin, { model: state.model, lang }, request.next())
+    papercraft(state.skin, { model: state.model, lang, ...state.pdf }, request.next())
       .then(({ pdf, warnings }) => {
-        dispatch({ type: "addWarnings", warnings });
+        dispatch({ type: "pdfReady", warnings });
         saveBlob(pdf, PDF_NAME);
       })
       .catch(fail)
@@ -140,6 +140,10 @@ function StepView({ flow }: { flow: Flow }) {
 function DownloadStep({ flow, skin }: { flow: Flow; skin: Blob }) {
   return (
     <Download
+      settings={flow.state.pdf}
+      onSettings={(pdf) => {
+        flow.dispatch({ type: "setPdf", pdf });
+      }}
       busy={flow.pdfBusy}
       onPng={() => {
         saveBlob(skin, PNG_NAME);
