@@ -1,19 +1,23 @@
 import { useState } from "react";
-import type { SkinModel } from "../api/client";
+import type { SkinModel, SkinSpec } from "../api/client";
 import { Button } from "../components/Button";
 import { SegmentedControl } from "../components/SegmentedControl";
 import { SkinViewer, type ViewRequest, type ViewSide } from "../components/SkinViewer";
 import { useI18n } from "../i18n";
+import { PalettePanel } from "./PalettePanel";
 
 export interface PreviewProps {
   skin: Blob;
   model: SkinModel;
+  /** Spec of a generated skin; null for an imported one, which has no palette. */
+  spec: SkinSpec | null;
   onModel: (model: SkinModel) => void;
+  onSpec: (spec: SkinSpec) => void;
   onNext: () => void;
   onReset: () => void;
 }
 
-export function Preview({ skin, model, onModel, onNext, onReset }: PreviewProps) {
+export function Preview({ skin, model, spec, onModel, onSpec, onNext, onReset }: PreviewProps) {
   const { t } = useI18n();
   const [view, setView] = useState<ViewRequest>({ side: "front" });
   return (
@@ -40,6 +44,7 @@ export function Preview({ skin, model, onModel, onNext, onReset }: PreviewProps)
             { value: "slim", label: t("preview.slim") },
           ]}
         />
+        {spec && <PalettePanel spec={spec} onChange={onSpec} />}
         <div className="flex gap-2">
           <Button onClick={onNext}>{t("preview.next")}</Button>
           <Button variant="ghost" onClick={onReset}>
