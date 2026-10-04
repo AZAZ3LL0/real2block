@@ -26,6 +26,7 @@ Side = Literal["N", "S", "W", "E"]
 
 TAB_HEIGHT_MM = 6.0
 EDGE_LABEL_INSET_MM = 2.0
+_EPS_MM = 1e-9
 
 PART_CODES: Mapping[PartId, str] = MappingProxyType(
     {
@@ -238,7 +239,13 @@ def _tab(frame: _Frame, spec: TabSpec, text: str) -> tuple[NetTab, tuple[Segment
     q1 = _offset(p1, nx * hgt - tx * hgt, ny * hgt - ty * hgt)
     mid = Point((p0.x + p1.x) / 2 + nx * hgt / 2, (p0.y + p1.y) / 2 + ny * hgt / 2)
     tab = NetTab((p0, q0, q1, p1), Label(text, mid, vertical=spec.side in ("W", "E")))
-    return tab, ((p0, q0), (q0, q1), (q1, p1))
+    # On an edge exactly two slopes long the tab is a triangle with no free side.
+    free: tuple[Segment, ...] = () if _same(q0, q1) else ((q0, q1),)
+    return tab, ((p0, q0), *free, (q1, p1))
+
+
+def _same(a: Point, b: Point) -> bool:
+    return abs(a.x - b.x) < _EPS_MM and abs(a.y - b.y) < _EPS_MM
 
 
 def _edge_label(frame: _Frame, face: FaceId, side: Side, text: str) -> Label:
