@@ -1,6 +1,7 @@
 """Application factory: config, then dependencies, then the FastAPI app."""
 
 from collections.abc import Mapping
+from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 
@@ -21,6 +22,7 @@ from real2block.api.schemas import PapercraftOptions
 from real2block.config import Settings
 from real2block.domain.papercraft.document import PapercraftService
 from real2block.domain.papercraft.pdf import PdfRenderer
+from real2block.domain.stylize.grids import TEMPLATES_DIR, load_template_dir
 from real2block.domain.vision.face import YuNetModel
 from real2block.domain.vision.loader import configure_pillow
 from real2block.log import configure_logging
@@ -91,11 +93,14 @@ class Real2blockApp(FastAPI):
 
 
 def app_factory(
-    settings: Settings | None = None, face_model: ReadinessProbe | None = None
+    settings: Settings | None = None,
+    face_model: ReadinessProbe | None = None,
+    templates_dir: Path = TEMPLATES_DIR,
 ) -> FastAPI:
-    """Build the app; fails fast on invalid config or a tampered face model."""
+    """Build the app; fails fast on invalid config, templates or a tampered face model."""
     settings = settings or Settings()
     _configure_process(settings)
+    load_template_dir(templates_dir)
     container = Container(
         face_model=face_model
         or YuNetModel(settings.face_model_path, settings.face_score_threshold),
