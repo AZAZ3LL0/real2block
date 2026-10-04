@@ -29,9 +29,18 @@ HATCH_GRAY = 0.7
 HEADING_SIZE_PT = 7.0
 LABEL_SIZE_PT = 5.0
 RULER_TICK_MM = 10.0
+RULER_TICK_H_MM = 2.0
+RULER_GAP_MM = 2.0
+TITLE_DROP_MM = 8.5
+RULER_DROP_MM = 2.5
 
 _BLACK = Color(0, 0, 0)
 _WHITE = Color(1, 1, 1)
+
+
+def _fit_size(value: str, font: str, size: float, max_width_pt: float) -> float:
+    width = pdfmetrics.stringWidth(value, font, size)
+    return size if width <= max_width_pt else size * max_width_pt / width
 
 
 def _color(rgb: Rgb) -> Color:
@@ -80,10 +89,12 @@ class PdfRenderer:
 
     def _header(self, page: _Page, title: str, lang: Lang) -> None:
         c, frame = page.c, page.frame
-        baseline = frame.content_y - frame.content_y / 4
         c.setFillColor(_BLACK)
-        c.setFont(HEADING_FONT, HEADING_SIZE_PT)
-        c.drawString(*page.xy(frame.content_x, baseline), title)
+        size = _fit_size(title, HEADING_FONT, HEADING_SIZE_PT, frame.content_w * mm)
+        c.setFont(HEADING_FONT, size)
+        c.drawString(*page.xy(frame.content_x, frame.content_y - TITLE_DROP_MM), title)
+        # The ruler sits on its own line so a long title can never cover it.
+        baseline = frame.content_y - RULER_DROP_MM
         right = frame.content_x + frame.content_w
         left = right - RULER_MM
         c.setStrokeColor(_BLACK)
@@ -93,10 +104,10 @@ class PdfRenderer:
         ticks = int(RULER_MM / RULER_TICK_MM)
         for i in range(ticks + 1):
             x = left + i * RULER_TICK_MM
-            c.line(*page.xy(x, baseline), *page.xy(x, baseline - 2))
+            c.line(*page.xy(x, baseline), *page.xy(x, baseline - RULER_TICK_H_MM))
         # Helvetica has no Cyrillic, so localized text uses the vendored font.
         c.setFont(HEADING_FONT, LABEL_SIZE_PT)
-        c.drawCentredString(*page.xy(left + RULER_MM / 2, baseline + 3.5), text(lang, "ruler"))
+        c.drawRightString(*page.xy(left - RULER_GAP_MM, baseline), text(lang, "ruler"))
 
     def _net(self, page: _Page, placement: Placement, grid: bool) -> None:
         net, dx, dy = placement.net, placement.x, placement.y
