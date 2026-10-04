@@ -14,6 +14,9 @@ import numpy.typing as npt
 
 _HEX_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
+SHADE_DELTA_L = 12.0
+"""Lightness drop of a role shade (tech.md §4.4)."""
+
 
 @dataclass(frozen=True, slots=True)
 class Rgb:
@@ -85,3 +88,15 @@ def quantize(samples: Sequence[Rgb], max_colors: int) -> dict[Rgb, Rgb]:
         representative = max(group, key=lambda c: (counts[c], -c.r, -c.g, -c.b))
         mapping.update({c: representative for c in group})
     return mapping
+
+
+def darken(color: Rgb, delta_l: float = SHADE_DELTA_L) -> Rgb:
+    """Same a and b in Lab with lightness lowered by `delta_l`, clamped at black.
+
+    Out-of-gamut results are clipped per channel.
+    """
+    lab = to_lab([color])
+    lab[0, 0] = max(0.0, float(lab[0, 0]) - delta_l)
+    rgb = cv2.cvtColor(lab[np.newaxis], cv2.COLOR_Lab2RGB)[0, 0]
+    r, g, b = (round(min(1.0, max(0.0, float(c))) * 255) for c in rgb)
+    return Rgb(r, g, b)
