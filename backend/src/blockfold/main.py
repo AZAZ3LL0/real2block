@@ -2,6 +2,7 @@
 
 from collections.abc import Mapping
 from types import MappingProxyType
+from typing import Any
 
 from fastapi import FastAPI
 from starlette.formparsers import MultiPartParser
@@ -16,6 +17,7 @@ from blockfold.api.middleware import (
     SecurityHeadersMiddleware,
 )
 from blockfold.api.routes import API_PREFIX, WARNINGS_HEADER, router
+from blockfold.api.schemas import PapercraftOptions
 from blockfold.config import Settings
 from blockfold.domain.papercraft.document import PapercraftService
 from blockfold.domain.papercraft.pdf import PdfRenderer
@@ -76,6 +78,18 @@ def _add_middleware(app: FastAPI, settings: Settings) -> None:
     app.add_middleware(SecurityHeadersMiddleware, hsts=settings.is_prod)
 
 
+class BlockfoldApp(FastAPI):
+    """FastAPI app whose OpenAPI also lists models sent inside multipart fields."""
+
+    def openapi(self) -> dict[str, Any]:
+        """Schema with PapercraftOptions, which travels as a JSON form string."""
+        if self.openapi_schema is None:
+            schema = super().openapi()
+            components = schema.setdefault("components", {}).setdefault("schemas", {})
+            components["PapercraftOptions"] = PapercraftOptions.model_json_schema()
+        return super().openapi()
+
+
 def app_factory(
     settings: Settings | None = None, face_model: ReadinessProbe | None = None
 ) -> FastAPI:
@@ -88,7 +102,7 @@ def app_factory(
         papercraft=PapercraftService(PdfRenderer()),
         heavy=HeavyRunner(),
     )
-    app = FastAPI(title="Blockfold API", version="1", docs_url=None, redoc_url=None)
+    app = BlockfoldApp(title="Blockfold API", version="1", docs_url=None, redoc_url=None)
     app.state.container = container
     install_error_handlers(app)
     app.include_router(router)

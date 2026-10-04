@@ -256,3 +256,8 @@ def test_uploads_leave_no_files_and_no_log_traces(reference_png: bytes) -> None:
     assert upload_name not in logs
     assert "testclient" not in logs
     assert base64.b64encode(reference_png[:24]).decode() not in logs
+
+
+def test_openapi_publishes_papercraft_options() -> None:
+    schemas = make_app().openapi()["components"]["schemas"]
+    assert schemas["PapercraftOptions"]["properties"]["pixel_mm"]["maximum"] == 8.0
