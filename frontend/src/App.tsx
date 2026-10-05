@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { ApiError, isAbort, normalizeSkin, papercraft, type ErrorCode } from "./api/client";
 import { Alert } from "./components/Alert";
-import { SegmentedControl } from "./components/SegmentedControl";
 import { Stepper } from "./components/Stepper";
 import { WarningList } from "./components/WarningList";
 import type { RejectReason } from "./components/FileDrop";
 import { saveBlob } from "./download";
-import { useI18n, type Lang } from "./i18n";
+import { useI18n } from "./i18n";
+import { Layout } from "./Layout";
 import { initialState, reducer, STEPS } from "./state";
 import { Download } from "./steps/Download";
 import { Preview } from "./steps/Preview";
@@ -30,32 +30,12 @@ function useAbortable() {
   };
 }
 
-function Header() {
-  const { t, lang, setLang } = useI18n();
-  return (
-    <header className="flex flex-wrap items-center justify-between gap-4">
-      <div>
-        <h1 className="font-pixel text-lg">{t("app.title")}</h1>
-        <p className="text-sm text-neutral-600">{t("app.tagline")}</p>
-      </div>
-      <SegmentedControl<Lang>
-        label={t("lang.label")}
-        value={lang}
-        onChange={setLang}
-        options={[
-          { value: "ru", label: "RU" },
-          { value: "en", label: "EN" },
-        ]}
-      />
-    </header>
-  );
-}
-
 function useSkinFlow() {
   const { lang } = useI18n();
   const [state, dispatch] = useReducer(reducer, initialState);
   const [pdfBusy, setPdfBusy] = useState(false);
   const request = useAbortable();
+  const pdfLang = state.pdfLang ?? lang;
 
   const fail = useCallback((err: unknown) => {
     if (isAbort(err)) return;
@@ -81,7 +61,7 @@ function useSkinFlow() {
   const downloadPdf = () => {
     if (!state.skin) return;
     setPdfBusy(true);
-    papercraft(state.skin, { model: state.model, lang, ...state.pdf }, request.next())
+    papercraft(state.skin, { model: state.model, lang: pdfLang, ...state.pdf }, request.next())
       .then(({ pdf, warnings }) => {
         dispatch({ type: "pdfReady", warnings });
         saveBlob(pdf, PDF_NAME);
@@ -97,7 +77,7 @@ function useSkinFlow() {
     dispatch({ type: "cancelled" });
   };
 
-  return { state, dispatch, pdfBusy, importSkin, downloadPdf, cancel };
+  return { state, dispatch, pdfBusy, pdfLang, importSkin, downloadPdf, cancel };
 }
 
 type Flow = ReturnType<typeof useSkinFlow>;
@@ -152,6 +132,10 @@ function DownloadStep({ flow, skin }: { flow: Flow; skin: Blob }) {
       onSettings={(pdf) => {
         flow.dispatch({ type: "setPdf", pdf });
       }}
+      pdfLang={flow.pdfLang}
+      onPdfLang={(lang) => {
+        flow.dispatch({ type: "setPdfLang", lang });
+      }}
       busy={flow.pdfBusy}
       onPng={() => {
         saveBlob(skin, PNG_NAME);
@@ -169,8 +153,7 @@ export function App() {
   const flow = useSkinFlow();
   const { state } = flow;
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-6 p-4 sm:p-8">
-      <Header />
+    <Layout>
       <Stepper steps={STEPS.map((s) => t(`steps.${s}`))} current={STEPS.indexOf(state.step)} />
       {state.error && (
         <Alert tone="error" title={t("errors.title")}>
@@ -179,6 +162,6 @@ export function App() {
       )}
       <WarningList warnings={state.warnings} />
       <StepView flow={flow} />
-    </main>
+    </Layout>
   );
 }

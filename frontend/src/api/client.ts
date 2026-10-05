@@ -6,6 +6,7 @@ export type WarningCode = Schemas["NormalizeResponse"]["warnings"][number];
 export type NormalizeResponse = Schemas["NormalizeResponse"];
 export type PapercraftOptions = Schemas["PapercraftOptions"];
 export type PdfSettings = Pick<PapercraftOptions, "paper" | "pixel_mm" | "mode" | "grid_lines">;
+export type PdfLang = PapercraftOptions["lang"];
 export type SkinModel = NormalizeResponse["model"];
 export type SkinSpec = Schemas["SkinSpec"];
 export type Palette = Schemas["Palette"];

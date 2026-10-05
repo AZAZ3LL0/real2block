@@ -52,6 +52,55 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+async function pdfOptions(fetchMock: ReturnType<typeof mockApi>): Promise<unknown> {
+  await waitFor(() => {
+    expect(fetchMock.mock.calls.some(([url]) => url.endsWith("/papercraft"))).toBe(true);
+  });
+  const pdfCall = fetchMock.mock.calls.find(([url]) => url.endsWith("/papercraft"));
+  const options = (pdfCall?.[1]?.body as FormData).get("options");
+  return typeof options === "string" ? JSON.parse(options) : null;
+}
+
+describe("languages", () => {
+  it("prints the PDF in the interface language by default", async () => {
+    const fetchMock = mockApi();
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    renderApp();
+    await userEvent.click(screen.getByRole("radio", { name: "RU" }));
+    fireEvent.change(screen.getByLabelText("Готовый скин"), {
+      target: { files: [new File(["png"], "s.png", { type: "image/png" })] },
+    });
+    await userEvent.click(await screen.findByRole("button", { name: "Далее" }));
+    expect(screen.getByRole("radio", { name: "Русский" })).toHaveAttribute("aria-checked", "true");
+    await userEvent.click(screen.getByRole("button", { name: "Скачать PDF" }));
+    expect(await pdfOptions(fetchMock)).toMatchObject({ lang: "ru" });
+  });
+
+  it("keeps an explicitly chosen PDF language when the interface language changes", async () => {
+    const fetchMock = mockApi();
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    renderApp();
+    pickSkin();
+    await userEvent.click(await screen.findByRole("button", { name: "Next" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Русский" }));
+    await userEvent.click(screen.getByRole("radio", { name: "EN" }));
+    await userEvent.click(screen.getByRole("button", { name: "Download PDF" }));
+    expect(await pdfOptions(fetchMock)).toMatchObject({ lang: "ru" });
+  });
+
+  it("marks the document with the interface language", async () => {
+    renderApp();
+    expect(document.documentElement.lang).toBe("en");
+    await userEvent.click(screen.getByRole("radio", { name: "RU" }));
+    expect(document.documentElement.lang).toBe("ru");
+  });
+
+  it("links to the privacy policy", () => {
+    renderApp();
+    expect(screen.getByRole("link", { name: "Privacy policy" })).toHaveAttribute("href", "/privacy");
+  });
+});
+
 describe("reference vertical", () => {
   it("imports a skin, previews it and requests the PDF", async () => {
     const fetchMock = mockApi();
