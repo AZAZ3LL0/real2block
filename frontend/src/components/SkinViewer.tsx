@@ -58,5 +58,5 @@ export function SkinViewer({ skin, model, view, label, size = 320 }: SkinViewerP
     instance.playerObject.rotation.y = SIDE_ROTATION[view.side];
   }, [view, size]);
 
-  return <canvas ref={canvas} role="img" aria-label={label} className="max-w-full touch-none" />;
+  return <canvas ref={canvas} role="img" aria-label={label} className="h-auto max-w-full touch-none" />;
 }

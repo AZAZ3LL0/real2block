@@ -7,7 +7,7 @@ import type { RejectReason } from "./components/FileDrop";
 import { saveBlob } from "./download";
 import { useI18n } from "./i18n";
 import { Layout } from "./Layout";
-import { initialState, reducer, STEPS } from "./state";
+import { initialState, reducer, STEPS, type Step } from "./state";
 import { Download } from "./steps/Download";
 import { Preview } from "./steps/Preview";
 import { Processing } from "./steps/Processing";
@@ -148,13 +148,36 @@ function DownloadStep({ flow, skin }: { flow: Flow; skin: Blob }) {
   );
 }
 
+/** Moves focus to the heading of a newly shown step, so keyboard and screen reader users follow along. */
+function useStepFocus(step: Step) {
+  const heading = useRef<HTMLHeadingElement>(null);
+  const first = useRef(true);
+  useEffect(() => {
+    // The first step is where the page starts; stealing focus there would skip the header.
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    heading.current?.focus();
+  }, [step]);
+  return heading;
+}
+
 export function App() {
   const { t } = useI18n();
   const flow = useSkinFlow();
   const { state } = flow;
+  const heading = useStepFocus(state.step);
   return (
     <Layout>
-      <Stepper steps={STEPS.map((s) => t(`steps.${s}`))} current={STEPS.indexOf(state.step)} />
+      <Stepper
+        label={t("steps.label")}
+        steps={STEPS.map((s) => t(`steps.${s}`))}
+        current={STEPS.indexOf(state.step)}
+      />
+      <h2 ref={heading} tabIndex={-1} className="sr-only">
+        {t(`steps.${state.step}`)}
+      </h2>
       {state.error && (
         <Alert tone="error" title={t("errors.title")}>
           {t(`errors.${state.error}`)}

@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useId, useRef, type KeyboardEvent } from "react";
 import type { Option } from "./Select";
 
 export interface SegmentedControlProps<T extends string> {
@@ -10,6 +10,16 @@ export interface SegmentedControlProps<T extends string> {
   showLabel?: boolean;
 }
 
+// Keys of the WAI-ARIA radio group pattern and the index step each one makes.
+const STEP_KEYS: Record<string, number> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
+
+function nextIndex(key: string, current: number, count: number): number | null {
+  if (key === "Home") return 0;
+  if (key === "End") return count - 1;
+  const step = STEP_KEYS[key];
+  return step === undefined ? null : (current + step + count) % count;
+}
+
 export function SegmentedControl<T extends string>({
   label,
   value,
@@ -18,24 +28,41 @@ export function SegmentedControl<T extends string>({
   showLabel = false,
 }: SegmentedControlProps<T>) {
   const labelId = useId();
+  const buttons = useRef<(HTMLButtonElement | null)[]>([]);
+
+  // Arrow keys move the choice and the focus together; the group is one tab stop.
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const index = nextIndex(e.key, options.findIndex((o) => o.value === value), options.length);
+    const option = index === null ? undefined : options[index];
+    if (index === null || !option) return;
+    e.preventDefault();
+    onChange(option.value);
+    buttons.current[index]?.focus();
+  };
+
   const group = (
     <div
       role="radiogroup"
       {...(showLabel ? { "aria-labelledby": labelId } : { "aria-label": label })}
-      className="inline-flex self-start rounded-md border border-neutral-300 p-0.5"
+      onKeyDown={onKeyDown}
+      className="inline-flex self-start rounded-md border border-neutral-500 p-0.5"
     >
-      {options.map((o) => {
+      {options.map((o, index) => {
         const active = o.value === value;
         return (
           <button
             key={o.value}
+            ref={(el) => {
+              buttons.current[index] = el;
+            }}
             type="button"
             role="radio"
             aria-checked={active}
+            tabIndex={active ? 0 : -1}
             onClick={() => {
               onChange(o.value);
             }}
-            className={`rounded px-3 py-1.5 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
+            className={`min-h-10 rounded px-3 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
               active ? "bg-accent text-white" : "text-neutral-700 hover:bg-neutral-100"
             }`}
           >

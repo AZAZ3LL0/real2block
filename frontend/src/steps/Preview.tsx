@@ -21,10 +21,14 @@ export function Preview({ skin, model, spec, onModel, onSpec, onNext, onReset }:
   const { t } = useI18n();
   const [view, setView] = useState<ViewRequest>({ side: "front" });
   return (
-    <div className="flex flex-col gap-6 md:flex-row">
-      <SkinViewer skin={skin} model={model} view={view} label={t("viewer.label")} />
-      <div className="flex flex-col gap-4">
+    // Narrow screens stack the viewer above the panel (tech.md §6.4).
+    <div className="flex flex-col gap-6 md:flex-row md:items-start">
+      <div className="flex justify-center md:block">
+        <SkinViewer skin={skin} model={model} view={view} label={t("viewer.label")} />
+      </div>
+      <div className="flex flex-1 flex-col gap-4">
         <SegmentedControl
+          showLabel
           label={t("preview.side")}
           value={view.side}
           onChange={(side: ViewSide) => {
@@ -36,6 +40,7 @@ export function Preview({ skin, model, spec, onModel, onSpec, onNext, onReset }:
           ]}
         />
         <SegmentedControl
+          showLabel
           label={t("preview.model")}
           value={model}
           onChange={onModel}
@@ -45,7 +50,7 @@ export function Preview({ skin, model, spec, onModel, onSpec, onNext, onReset }:
           ]}
         />
         {spec && <PalettePanel spec={spec} onChange={onSpec} />}
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <Button onClick={onNext}>{t("preview.next")}</Button>
           <Button variant="ghost" onClick={onReset}>
             {t("preview.again")}

@@ -2,6 +2,7 @@
   "app.title": "real2block",
   "app.tagline": "Minecraft skin → paper figure",
   "lang.label": "Language",
+  "steps.label": "Steps",
   "steps.upload": "Upload",
   "steps.processing": "Processing",
   "steps.preview": "Preview",

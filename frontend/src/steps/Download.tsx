@@ -46,7 +46,7 @@ function ModeField({ settings, onSettings }: Pick<DownloadProps, "settings" | "o
           { value: "numbered", label: t("download.mode.numbered") },
         ]}
       />
-      <p className="text-xs text-neutral-500">{t(`download.modeHint.${settings.mode}`)}</p>
+      <p className="text-xs text-neutral-600">{t(`download.modeHint.${settings.mode}`)}</p>
     </div>
   );
 }
@@ -105,12 +105,12 @@ function PdfOptions({ settings, onSettings, pdfLang, onPdfLang }: OptionsProps) 
 export function Download({ busy, onPng, onPdf, onBack, ...options }: DownloadProps) {
   const { t } = useI18n();
   return (
-    <div className="flex flex-col items-start gap-6">
+    <div className="flex flex-col gap-6 sm:items-start">
       <Button variant="secondary" onClick={onPng}>
         {t("download.png")}
       </Button>
       <PdfOptions {...options} />
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <Button onClick={onPdf} disabled={busy}>
           {t("download.pdf")}
         </Button>

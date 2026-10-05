@@ -44,6 +44,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npx tsc --noEmit
+      - run: npx tsc --noEmit -p e2e
       - run: npx eslint .
       - run: npx vitest run
       # Dev-only advisories (Tailwind 3 -> braces) have no fix; see the PR notes.
@@ -78,6 +79,37 @@ jobs:
       - name: Stop API
         if: always()
         run: kill "$(cat "$RUNNER_TEMP/api.pid")" 2>/dev/null || true
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Start the production stack
+        run: docker compose -f docker/compose.yml up -d --build --wait
+      - run: npm ci
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: npm run e2e
+        working-directory: frontend
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+          retention-days: 7
+      - name: Stop the stack
+        if: always()
+        run: |
+          docker compose -f docker/compose.yml logs --no-color api caddy | tail -n 200
+          docker compose -f docker/compose.yml down
 
   images:
     runs-on: ubuntu-latest

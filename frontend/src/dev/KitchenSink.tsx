@@ -82,7 +82,7 @@ export function KitchenSink() {
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 p-4 sm:p-8">
       <h1 className="font-pixel text-lg">Kitchen sink</h1>
-      <Stepper steps={["Upload", "Processing", "Preview", "Download"]} current={2} />
+      <Stepper label="Steps" steps={["Upload", "Processing", "Preview", "Download"]} current={2} />
       <Controls />
       <Section title="FileDrop">
         <FileDrop label="Skin" hint="PNG up to 64 KB" dropText="Drop a file or" chooseText="choose" accept={["image/png"]} maxBytes={65536} onFile={() => undefined} onReject={() => undefined} />

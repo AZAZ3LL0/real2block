@@ -16,6 +16,8 @@ export default defineConfig(({ mode }) => {
     build: { sourcemap: false },
     test: {
       environment: "jsdom",
+      // e2e/*.spec.ts belong to Playwright.
+      include: ["src/**/*.test.{ts,tsx}"],
       globals: true,
       setupFiles: ["src/test/setup.ts"],
       css: false,

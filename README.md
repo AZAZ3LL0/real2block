@@ -27,6 +27,13 @@ npx tsc --noEmit && npx eslint . && npx vitest run
 npm run dev       # http://localhost:5173, proxies /api to :8000
 ```
 
+End-to-end tests run against the Docker stack below:
+
+```bash
+npx playwright install chromium
+npm run e2e        # E2E_BASE_URL defaults to http://localhost:8080
+```
+
 `http://localhost:5173/?dev=kitchen-sink` shows every UI component (dev builds only).
 
 ## Docker

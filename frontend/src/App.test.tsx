@@ -101,6 +101,20 @@ describe("languages", () => {
   });
 });
 
+describe("focus", () => {
+  it("leaves focus alone on load and moves it to each new step", async () => {
+    mockApi();
+    renderApp();
+    expect(document.body).toHaveFocus();
+    pickSkin();
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { level: 2, name: "Preview" })).toHaveFocus();
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByRole("heading", { level: 2, name: "Download" })).toHaveFocus();
+  });
+});
+
 describe("reference vertical", () => {
   it("imports a skin, previews it and requests the PDF", async () => {
     const fetchMock = mockApi();
