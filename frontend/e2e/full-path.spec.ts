@@ -4,6 +4,8 @@ import { expect, test, type Download, type Locator, type Page } from "@playwrigh
 
 // The owner-approved reference skin doubles as the e2e input.
 const SKIN = fileURLToPath(new URL("../../backend/tests/fixtures/reference_skin.png", import.meta.url));
+// A CC0 photo from the backend fixtures (see its LICENSES.md).
+const PHOTO = fileURLToPath(new URL("../../backend/tests/fixtures/photos/frontal_white_tshirt.jpg", import.meta.url));
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 async function saved(download: Download): Promise<Buffer> {
@@ -31,11 +33,40 @@ function collectPageErrors(page: Page): string[] {
   return errors;
 }
 
+test("photo goes through analysis, recoloring and preview to the PDF (tech.md §10.11)", async ({ page }) => {
+  const errors = collectPageErrors(page);
+  await page.goto("/");
+  await page.getByRole("checkbox", { name: /I consent to processing/ }).check();
+  await page.getByLabel("Photo of a person").setInputFiles(PHOTO);
+
+  const viewer = page.getByRole("img", { name: "3D skin preview" });
+  await expect(viewer).toBeVisible();
+  await expect(page.getByRole("group", { name: "Colors" })).toBeVisible();
+
+  // Recoloring the T-shirt goes through the debounced /skin and redraws the preview.
+  const before = await viewer.screenshot();
+  const restyled = page.waitForResponse((r) => r.url().endsWith("/api/v1/skin") && r.ok());
+  await page.getByLabel("T-shirt").fill("#ff0000");
+  await restyled;
+  await expectRedrawn(viewer, before);
+
+  await page.getByRole("button", { name: "Next" }).click();
+  const [pdfDownload] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Download PDF" }).click(),
+  ]);
+  const pdf = await saved(pdfDownload);
+  expect(pdf.subarray(0, 4).toString("latin1")).toBe("%PDF");
+
+  expect(errors).toEqual([]);
+});
+
 test("imported skin goes through preview to the PNG and the PDF", async ({ page }) => {
   const errors = collectPageErrors(page);
   await page.goto("/");
   const viewer = page.getByRole("img", { name: "3D skin preview" });
 
+  await page.getByRole("radio", { name: "Ready skin" }).click();
   await page.getByLabel("Ready skin").setInputFiles(SKIN);
   await expect(viewer).toBeVisible();
   await expect(page.getByRole("heading", { name: "Preview" })).toBeFocused();
@@ -74,5 +105,5 @@ test("privacy policy is served on its own path in both languages", async ({ page
   await expect(page.getByRole("heading", { level: 1, name: "Политика приватности" })).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("lang", "ru");
   await page.getByRole("link", { name: "К приложению" }).click();
-  await expect(page.getByLabel("Ready skin")).toBeVisible();
+  await expect(page.getByLabel("Photo of a person")).toBeVisible();
 });
