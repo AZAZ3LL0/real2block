@@ -1,4 +1,6 @@
 import io
+import struct
+import zlib
 from collections import Counter
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -23,6 +25,19 @@ def decode_png(data: bytes) -> npt.NDArray[np.uint8]:
     """RGBA pixels of a PNG; goldens compare pixels because zlib output varies by build."""
     with Image.open(io.BytesIO(data)) as img:
         return np.asarray(img.convert("RGBA"), dtype=np.uint8)
+
+
+def _png_chunk(kind: bytes, data: bytes) -> bytes:
+    crc = struct.pack(">I", zlib.crc32(kind + data))
+    return struct.pack(">I", len(data)) + kind + data + crc
+
+
+def png_header_only(width: int, height: int) -> bytes:
+    """Tiny PNG that claims any size in its header: a decompression bomb stand-in."""
+    ihdr = struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0)
+    idat = zlib.compress(b"\x00" * 1024)
+    magic = b"\x89PNG\r\n\x1a\n"
+    return magic + _png_chunk(b"IHDR", ihdr) + _png_chunk(b"IDAT", idat) + _png_chunk(b"IEND", b"")
 
 
 def blank(width: int = 64, height: int = 64) -> npt.NDArray[np.uint8]:
