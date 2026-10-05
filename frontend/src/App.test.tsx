@@ -23,8 +23,11 @@ function renderApp() {
   );
 }
 
-function pickSkin(file = new File(["png"], "s.png", { type: "image/png" })) {
-  fireEvent.change(screen.getByLabelText("Ready skin"), { target: { files: [file] } });
+function pickSkin(file = new File(["png"], "s.png", { type: "image/png" }), tab = "Ready skin") {
+  // The photo tab is the default; the skin tab stays open after the first switch.
+  const radio = screen.queryByRole("radio", { name: tab });
+  if (radio?.getAttribute("aria-checked") === "false") fireEvent.click(radio);
+  fireEvent.change(screen.getByLabelText(tab), { target: { files: [file] } });
 }
 
 function mockApi() {
@@ -40,11 +43,13 @@ function mockApi() {
 }
 
 const createUrl = vi.fn((_: Blob) => "blob:test");
+const revokeUrl = vi.fn((_: string) => undefined);
 
 beforeEach(() => {
   createUrl.mockClear();
   URL.createObjectURL = createUrl;
-  URL.revokeObjectURL = vi.fn();
+  revokeUrl.mockClear();
+  URL.revokeObjectURL = revokeUrl;
 });
 
 afterEach(() => {
@@ -61,15 +66,90 @@ async function pdfOptions(fetchMock: ReturnType<typeof mockApi>): Promise<unknow
   return typeof options === "string" ? JSON.parse(options) : null;
 }
 
+const analyzed = {
+  spec: {
+    spec_version: 1,
+    model: "classic",
+    stylizer: "template",
+    hair_style: "short",
+    palette: {
+      skin: "#C68642",
+      hair: "#4A3222",
+      eye_white: "#FFFFFF",
+      iris: "#3B2A1A",
+      mouth: "#9C5B4E",
+      shirt: "#3FA7A0",
+      pants: "#2E3A8C",
+      shoes: "#3A3A3A",
+    },
+    face_front: Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => "#C68642")),
+  },
+  warnings: ["TORSO_NOT_VISIBLE"],
+};
+
+function mockPhotoApi(analyze: Promise<Response> = Promise.resolve(new Response(JSON.stringify(analyzed)))) {
+  const fetchMock = vi.fn((url: string, _init?: RequestInit) =>
+    url.endsWith("/analyze") ? analyze : Promise.resolve(new Response("PNG", { headers: { "Content-Type": "image/png" } })),
+  );
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
+
+async function pickPhoto() {
+  await userEvent.click(screen.getByRole("checkbox", { name: /I consent to processing/ }));
+  const photo = new File(["jpg"], "me.jpg", { type: "image/jpeg" });
+  fireEvent.change(screen.getByLabelText("Photo of a person"), { target: { files: [photo] } });
+  return photo;
+}
+
+describe("photo flow", () => {
+  it("analyzes the photo with consent and opens the palette preview", async () => {
+    const fetchMock = mockPhotoApi();
+    renderApp();
+    const photo = await pickPhoto();
+    expect(await screen.findByRole("group", { name: "Colors" }, { timeout: 2000 })).toBeInTheDocument();
+    expect(screen.getByLabelText("T-shirt")).toHaveValue("#3fa7a0");
+    expect(screen.getByText(/pick the shirt color manually/)).toBeInTheDocument();
+    const call = fetchMock.mock.calls.find(([url]) => url.endsWith("/analyze"));
+    const form = call?.[1]?.body as FormData;
+    expect(form.get("consent")).toBe("true");
+    expect(form.get("photo")).toBeInstanceOf(Blob);
+    expect(createUrl).toHaveBeenCalledWith(photo);
+  });
+
+  it("previews the photo while it is analyzed and releases it after the answer", async () => {
+    let answer: (r: Response) => void = () => undefined;
+    mockPhotoApi(new Promise<Response>((resolve) => (answer = resolve)));
+    renderApp();
+    await pickPhoto();
+    expect(screen.getByRole("img", { name: "Uploaded photo" })).toHaveAttribute("src", "blob:test");
+    expect(screen.getByText("Analyzing the photo…")).toBeInTheDocument();
+    answer(new Response(JSON.stringify(analyzed)));
+    await waitFor(() => {
+      expect(revokeUrl).toHaveBeenCalledWith("blob:test");
+    });
+    expect(screen.queryByRole("img", { name: "Uploaded photo" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the tab and the consent after a failed analysis", async () => {
+    vi.stubGlobal("fetch", vi.fn(() =>
+      Promise.resolve(new Response(JSON.stringify({ error: { code: "NO_FACE", message: "", request_id: "r" } }), { status: 422 })),
+    ));
+    renderApp();
+    await pickPhoto();
+    expect(await screen.findByRole("alert")).toHaveTextContent("No face found on the photo");
+    expect(screen.getByRole("radio", { name: "Photo" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("checkbox", { name: /I consent to processing/ })).toBeChecked();
+  });
+});
+
 describe("languages", () => {
   it("prints the PDF in the interface language by default", async () => {
     const fetchMock = mockApi();
     vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
     renderApp();
     await userEvent.click(screen.getByRole("radio", { name: "RU" }));
-    fireEvent.change(screen.getByLabelText("Готовый скин"), {
-      target: { files: [new File(["png"], "s.png", { type: "image/png" })] },
-    });
+    pickSkin(undefined, "Готовый скин");
     await userEvent.click(await screen.findByRole("button", { name: "Далее" }));
     expect(screen.getByRole("radio", { name: "Русский" })).toHaveAttribute("aria-checked", "true");
     await userEvent.click(screen.getByRole("button", { name: "Скачать PDF" }));

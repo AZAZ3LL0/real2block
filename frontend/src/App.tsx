@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
-import { ApiError, isAbort, normalizeSkin, papercraft, type ErrorCode } from "./api/client";
+import { analyzePhoto, ApiError, isAbort, normalizeSkin, papercraft } from "./api/client";
 import { Alert } from "./components/Alert";
 import { Stepper } from "./components/Stepper";
 import { WarningList } from "./components/WarningList";
-import type { RejectReason } from "./components/FileDrop";
 import { saveBlob } from "./download";
 import { useI18n } from "./i18n";
 import { Layout } from "./Layout";
@@ -11,7 +10,7 @@ import { initialState, reducer, STEPS, type Step } from "./state";
 import { Download } from "./steps/Download";
 import { Preview } from "./steps/Preview";
 import { Processing } from "./steps/Processing";
-import { Upload } from "./steps/Upload";
+import { INITIAL_UPLOAD, Upload, type UploadChoice } from "./steps/Upload";
 import { useDebouncedSkin } from "./useDebouncedSkin";
 
 const PDF_NAME = "real2block-figure.pdf";
@@ -34,6 +33,7 @@ function useSkinFlow() {
   const { lang } = useI18n();
   const [state, dispatch] = useReducer(reducer, initialState);
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [upload, setUpload] = useState<UploadChoice>(INITIAL_UPLOAD);
   const request = useAbortable();
   const pdfLang = state.pdfLang ?? lang;
 
@@ -48,6 +48,15 @@ function useSkinFlow() {
     },
     onError: fail,
   });
+
+  const importPhoto = (photo: File) => {
+    dispatch({ type: "start", photo });
+    analyzePhoto(photo, request.next())
+      .then((result) => {
+        dispatch({ type: "analyzed", result });
+      })
+      .catch(fail);
+  };
 
   const importSkin = (file: File) => {
     dispatch({ type: "start" });
@@ -77,14 +86,10 @@ function useSkinFlow() {
     dispatch({ type: "cancelled" });
   };
 
-  return { state, dispatch, pdfBusy, pdfLang, importSkin, downloadPdf, cancel };
+  return { state, dispatch, pdfBusy, pdfLang, upload, setUpload, importPhoto, importSkin, downloadPdf, cancel };
 }
 
 type Flow = ReturnType<typeof useSkinFlow>;
-
-function rejectCode(reason: RejectReason): ErrorCode {
-  return reason === "type" ? "UNSUPPORTED_FORMAT" : "FILE_TOO_LARGE";
-}
 
 function StepView({ flow }: { flow: Flow }) {
   const { state, dispatch } = flow;
@@ -92,14 +97,17 @@ function StepView({ flow }: { flow: Flow }) {
     case "upload":
       return (
         <Upload
+          choice={flow.upload}
+          onChoice={flow.setUpload}
+          onPhoto={flow.importPhoto}
           onSkin={flow.importSkin}
-          onReject={(reason) => {
-            dispatch({ type: "failed", code: rejectCode(reason) });
+          onError={(code) => {
+            dispatch({ type: "failed", code });
           }}
         />
       );
     case "processing":
-      return <Processing onCancel={flow.cancel} />;
+      return <Processing photo={state.photo} onCancel={flow.cancel} />;
     case "preview":
       return state.skin ? (
         <Preview
