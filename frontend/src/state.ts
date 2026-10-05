@@ -1,4 +1,4 @@
-import type { ErrorCode, ImportedSkin, PdfSettings, SkinModel, SkinSpec, WarningCode } from "./api/client";
+import type { ErrorCode, ImportedSkin, PdfLang, PdfSettings, SkinModel, SkinSpec, WarningCode } from "./api/client";
 
 export const STEPS = ["upload", "processing", "preview", "download"] as const;
 export type Step = (typeof STEPS)[number];
@@ -12,6 +12,8 @@ export interface State {
   warnings: WarningCode[];
   error: ErrorCode | null;
   pdf: PdfSettings;
+  /** Explicit PDF language; null follows the interface language (tech.md §6.5). */
+  pdfLang: PdfLang | null;
 }
 
 export type Action =
@@ -23,6 +25,7 @@ export type Action =
   | { type: "setSpec"; spec: SkinSpec }
   | { type: "styled"; skin: Blob }
   | { type: "setPdf"; pdf: Partial<PdfSettings> }
+  | { type: "setPdfLang"; lang: PdfLang }
   | { type: "pdfReady"; warnings: readonly WarningCode[] }
   | { type: "goto"; step: "preview" | "download" }
   | { type: "reset" };
@@ -38,6 +41,7 @@ export const initialState: State = {
   warnings: [],
   error: null,
   pdf: DEFAULT_PDF,
+  pdfLang: null,
 };
 
 function merge(a: readonly WarningCode[], b: readonly WarningCode[]): WarningCode[] {
@@ -67,6 +71,8 @@ export function reducer(state: State, action: Action): State {
     case "setPdf":
       // An error about the previous settings no longer applies.
       return { ...state, pdf: { ...state.pdf, ...action.pdf }, error: null };
+    case "setPdfLang":
+      return { ...state, pdfLang: action.lang };
     case "pdfReady":
       return { ...state, warnings: merge(state.warnings, action.warnings), error: null };
     case "goto":

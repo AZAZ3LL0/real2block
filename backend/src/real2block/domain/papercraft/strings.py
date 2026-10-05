@@ -147,9 +147,19 @@ _STRINGS: Mapping[Lang, Mapping[str, str]] = MappingProxyType(
 )
 
 
+def keys(lang: Lang) -> frozenset[str]:
+    """All string keys of a language."""
+    return frozenset(_STRINGS[lang])
+
+
+def template(lang: Lang, key: str) -> str:
+    """Raw localized string with its `{name}` placeholders unfilled."""
+    return _STRINGS[lang][key]
+
+
 def text(lang: Lang, key: str, **params: object) -> str:
     """Localized string with `str.format` parameters."""
-    return _STRINGS[lang][key].format(**params)
+    return template(lang, key).format(**params)
 
 
 def part_name(lang: Lang, part: PartId) -> str:

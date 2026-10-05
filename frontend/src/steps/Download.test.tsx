@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { PdfSettings } from "../api/client";
@@ -6,13 +6,15 @@ import { I18nProvider } from "../i18n";
 import { DEFAULT_PDF } from "../state";
 import { Download } from "./Download";
 
-function renderDownload(settings: PdfSettings = DEFAULT_PDF, busy = false) {
+function renderDownload(settings: PdfSettings = DEFAULT_PDF, busy = false, onPdfLang = vi.fn()) {
   const onSettings = vi.fn();
   render(
     <I18nProvider initial="en">
       <Download
         settings={settings}
         onSettings={onSettings}
+        pdfLang="en"
+        onPdfLang={onPdfLang}
         busy={busy}
         onPng={vi.fn()}
         onPdf={vi.fn()}
@@ -48,6 +50,15 @@ describe("Download", () => {
       [{ grid_lines: false }],
       [{ pixel_mm: 3.5 }],
     ]);
+  });
+
+  it("shows the PDF language and reports a new one", async () => {
+    const onPdfLang = vi.fn();
+    renderDownload(DEFAULT_PDF, false, onPdfLang);
+    const group = screen.getByRole("radiogroup", { name: "PDF language" });
+    expect(within(group).getByRole("radio", { name: "English" })).toHaveAttribute("aria-checked", "true");
+    await userEvent.click(within(group).getByRole("radio", { name: "Русский" }));
+    expect(onPdfLang).toHaveBeenCalledWith("ru");
   });
 
   it("explains the numbered mode", () => {
