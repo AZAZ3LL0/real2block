@@ -9,6 +9,7 @@ import re
 import tempfile
 from collections.abc import Iterator
 from dataclasses import replace
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -20,10 +21,14 @@ from pypdf import PdfReader
 
 from real2block.api.deps import Container
 from real2block.config import Settings
+from real2block.domain.color import Rgb, to_lab
 from real2block.domain.papercraft.document import PapercraftResult, PrintOptions
+from real2block.domain.vision.face import FaceBox, FaceDetector, FakeDetector
+from real2block.domain.vision.loader import RgbImage
 from real2block.log import JsonFormatter
 from real2block.main import app_factory
 from tests.helpers import FIXTURES, blank, decode_png, png_bytes
+from tests.portrait import Portrait
 
 API = "/api/v1"
 A4_PT = (595.28, 841.89)
@@ -365,11 +370,100 @@ def test_papercraft_rejects_legacy_skin(client: TestClient) -> None:
     assert _error_code(response) == "INVALID_SKIN"
 
 
+# /analyze
+
+
+class CountingDetector:
+    """FakeDetector that records how often it ran."""
+
+    def __init__(self, faces: list[FaceBox]) -> None:
+        self.calls = 0
+        self._fake = FakeDetector(faces)
+
+    def detect(self, image: RgbImage) -> list[FaceBox]:
+        self.calls += 1
+        return self._fake.detect(image)
+
+
+def _analyze_client(detector: FaceDetector) -> TestClient:
+    return TestClient(app_factory(Settings(app_env="dev"), detector=detector))
+
+
+def _analyze(client: TestClient, data: bytes, consent: str | None = "true") -> Response:
+    form = {} if consent is None else {"consent": consent}
+    return client.post(f"{API}/analyze", files={"photo": ("me.png", data, "image/png")}, data=form)
+
+
+@pytest.mark.parametrize("consent", [None, "", "false", "TRUE", "1"])
+def test_analyze_requires_consent_before_reading_the_photo(consent: str | None) -> None:
+    detector = CountingDetector([Portrait().box()])
+    response = _analyze(_analyze_client(detector), png_bytes(Portrait().render()), consent)
+    assert response.status_code == 400
+    assert _error_code(response) == "CONSENT_REQUIRED"
+    assert detector.calls == 0
+
+
+def test_analyze_without_a_face_returns_no_face() -> None:
+    response = _analyze(_analyze_client(FakeDetector()), png_bytes(Portrait().render()))
+    assert response.status_code == 422
+    assert _error_code(response) == "NO_FACE"
+
+
+@pytest.mark.parametrize(
+    ("files", "status", "code"),
+    [
+        ({"photo": ("a.txt", b"hello", "text/plain")}, 415, "UNSUPPORTED_FORMAT"),
+        ({}, 415, "UNSUPPORTED_FORMAT"),
+    ],
+)
+def test_analyze_rejects_bad_uploads(
+    files: dict[str, tuple[str, bytes, str]], status: int, code: str
+) -> None:
+    client = _analyze_client(FakeDetector([Portrait().box()]))
+    response = client.post(f"{API}/analyze", files=files, data={"consent": "true"})
+    assert response.status_code == status
+    assert _error_code(response) == code
+
+
+def test_analyze_returns_a_spec_the_skin_route_accepts() -> None:
+    scene = Portrait(face=(300, 650, 200, 240))
+    client = _analyze_client(FakeDetector([scene.box()]))
+    response = _analyze(client, png_bytes(scene.render()))
+    assert response.status_code == 200
+    body = response.json()
+    assert set(body) == {"spec", "warnings"}
+    assert body["warnings"] == ["TORSO_NOT_VISIBLE"]
+    spec = body["spec"]
+    assert spec["stylizer"] == "template"
+    assert [len(row) for row in spec["face_front"]] == [8] * 8
+    assert spec["palette"]["skin"] == spec["palette"]["skin"].upper()
+    skin = client.post(f"{API}/skin", json=spec)
+    assert skin.status_code == 200
+    assert decode_png(skin.content).shape == (64, 64, 4)
+
+
+@pytest.mark.parametrize("path", sorted((FIXTURES / "photos").glob("*.jpg")), ids=lambda p: p.stem)
+def test_analyze_real_photos_with_yunet(client: TestClient, path: Path) -> None:
+    response = client.post(
+        f"{API}/analyze",
+        files={"photo": (path.name, path.read_bytes(), "image/jpeg")},
+        data={"consent": "true"},
+    )
+    assert response.status_code == 200
+    skin = Rgb.from_hex(response.json()["spec"]["palette"]["skin"])
+    lightness, a, b = (float(v) for v in to_lab([skin])[0])
+    # Any human skin tone: neither black nor white, warm (red and yellow) hue.
+    assert 20 < lightness < 95
+    assert a > 0
+    assert b > 0
+
+
 # privacy (tech.md §8.1, §10.9)
 
 
 def test_uploads_leave_no_files_and_no_log_traces(reference_png: bytes) -> None:
     upload_name = "john-doe-passport.png"
+    reference_photo = (FIXTURES / "photos" / "frontal_suit.jpg").read_bytes()
     client = TestClient(make_app())
     stream = io.StringIO()
     handler = logging.StreamHandler(stream)
@@ -379,6 +473,11 @@ def test_uploads_leave_no_files_and_no_log_traces(reference_png: bytes) -> None:
     before = set(os.listdir(tmp))
     try:
         client.post(f"{API}/skin/normalize", files=_upload(reference_png, upload_name))
+        client.post(
+            f"{API}/analyze",
+            files={"photo": (upload_name, reference_photo, "image/jpeg")},
+            data={"consent": "true"},
+        )
         client.post(
             f"{API}/papercraft",
             files=_upload(reference_png, upload_name),
@@ -393,6 +492,8 @@ def test_uploads_leave_no_files_and_no_log_traces(reference_png: bytes) -> None:
     assert upload_name not in logs
     assert "testclient" not in logs
     assert base64.b64encode(reference_png[:24]).decode() not in logs
+    assert '"route": "/api/v1/analyze"' in logs
+    assert base64.b64encode(reference_photo[:24]).decode() not in logs
 
 
 def test_openapi_publishes_papercraft_options() -> None:

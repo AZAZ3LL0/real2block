@@ -24,7 +24,8 @@ from real2block.domain.papercraft.document import PapercraftService
 from real2block.domain.papercraft.pdf import PdfRenderer
 from real2block.domain.stylize.grids import TEMPLATES_DIR, load_template_dir
 from real2block.domain.stylize.template import TemplateStylizer
-from real2block.domain.vision.face import YuNetDetector
+from real2block.domain.vision.analyzer import PhotoAnalyzer
+from real2block.domain.vision.face import FaceDetector, YuNetDetector
 from real2block.domain.vision.loader import configure_pillow
 from real2block.log import configure_logging
 
@@ -93,21 +94,33 @@ class Real2blockApp(FastAPI):
         return super().openapi()
 
 
+def _face_parts(
+    settings: Settings, face_model: ReadinessProbe | None, detector: FaceDetector | None
+) -> tuple[ReadinessProbe, FaceDetector]:
+    """One YuNet instance serves readiness and detection unless tests replace both."""
+    if face_model is not None and detector is not None:
+        return face_model, detector
+    yunet = YuNetDetector(settings.face_model_path, settings.face_score_threshold)
+    return face_model or yunet, detector or yunet
+
+
 def app_factory(
     settings: Settings | None = None,
     face_model: ReadinessProbe | None = None,
+    detector: FaceDetector | None = None,
     templates_dir: Path = TEMPLATES_DIR,
 ) -> FastAPI:
     """Build the app; fails fast on invalid config, templates or a tampered face model."""
     settings = settings or Settings()
     _configure_process(settings)
     templates = load_template_dir(templates_dir)
+    face_model, detector = _face_parts(settings, face_model, detector)
     container = Container(
-        face_model=face_model
-        or YuNetDetector(settings.face_model_path, settings.face_score_threshold),
+        face_model=face_model,
         papercraft=PapercraftService(PdfRenderer()),
         heavy=HeavyRunner(),
         stylizers=MappingProxyType({"template": TemplateStylizer.from_templates(templates)}),
+        analyzer=PhotoAnalyzer(detector),
     )
     app = Real2blockApp(title="real2block API", version="1", docs_url=None, redoc_url=None)
     app.state.container = container

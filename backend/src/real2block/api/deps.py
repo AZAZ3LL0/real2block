@@ -11,6 +11,7 @@ from starlette.concurrency import run_in_threadpool
 from real2block.domain.errors import InternalError
 from real2block.domain.papercraft.document import PapercraftService
 from real2block.domain.stylize.base import Stylizer, StylizerId
+from real2block.domain.vision.analyzer import PhotoAnalyzer
 
 HEAVY_TIMEOUT_S = 10.0
 
@@ -47,6 +48,7 @@ class Container:
     papercraft: PapercraftService
     heavy: HeavyRunner
     stylizers: Mapping[StylizerId, Stylizer]
+    analyzer: PhotoAnalyzer
 
 
 def get_container(request: Request) -> Container:
