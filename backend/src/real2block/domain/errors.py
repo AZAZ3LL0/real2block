@@ -49,6 +49,18 @@ class UnsupportedFormatError(Real2blockError):
     code = "UNSUPPORTED_FORMAT"
 
 
+class ImageTooSmallError(Real2blockError):
+    """Photo is below the minimum dimensions."""
+
+    code = "IMAGE_TOO_SMALL"
+
+
+class ImageTooLargeError(Real2blockError):
+    """Photo exceeds the maximum dimensions or pixel count."""
+
+    code = "IMAGE_TOO_LARGE"
+
+
 class InvalidSkinError(Real2blockError):
     """Skin image is malformed or has wrong dimensions."""
 
