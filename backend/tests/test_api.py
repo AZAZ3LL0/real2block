@@ -5,6 +5,7 @@ import io
 import json
 import logging
 import os
+import re
 import tempfile
 from collections.abc import Iterator
 from dataclasses import replace
@@ -290,6 +291,22 @@ def test_papercraft_returns_full_document(client: TestClient, reference_png: byt
     for code in ("H", "B", "RA", "LA", "RL", "LL"):
         for letter in "ABCDEFG":
             assert f"{code}-{letter}" in text
+
+
+@pytest.mark.parametrize(
+    ("lang", "expected", "foreign"),
+    [("ru", "Бумажная фигурка", "Paper figure"), ("en", "Paper figure", "Бумажная фигурка")],
+)
+def test_papercraft_prints_in_the_requested_language(
+    client: TestClient, reference_png: bytes, lang: str, expected: str, foreign: str
+) -> None:
+    response = _papercraft(client, reference_png, lang=lang)
+    assert response.status_code == 200
+    text = "".join(page.extract_text() for page in _pdf(response).pages)
+    assert expected in text
+    assert foreign not in text
+    if lang == "en":
+        assert not re.search("[\u0400-\u04ff]", text)
 
 
 def test_papercraft_rejects_cells_too_big_for_paper(
