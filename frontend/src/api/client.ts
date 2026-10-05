@@ -4,6 +4,7 @@ type Schemas = components["schemas"];
 export type ErrorCode = Schemas["ErrorBody"]["code"];
 export type WarningCode = Schemas["NormalizeResponse"]["warnings"][number];
 export type NormalizeResponse = Schemas["NormalizeResponse"];
+export type AnalyzeResponse = Schemas["AnalyzeResponse"];
 export type PapercraftOptions = Schemas["PapercraftOptions"];
 export type PdfSettings = Pick<PapercraftOptions, "paper" | "pixel_mm" | "mode" | "grid_lines">;
 export type PdfLang = PapercraftOptions["lang"];
@@ -80,6 +81,15 @@ export async function normalizeSkin(file: Blob, signal?: AbortSignal): Promise<I
     model: body.model,
     warnings: body.warnings,
   };
+}
+
+/** Consent is sent only after the user ticked the box (tech.md §6.1, §8.1). */
+export async function analyzePhoto(photo: Blob, signal?: AbortSignal): Promise<AnalyzeResponse> {
+  const form = new FormData();
+  form.append("photo", photo, "photo");
+  form.append("consent", "true");
+  const response = await send("/analyze", form, signal);
+  return (await response.json()) as AnalyzeResponse;
 }
 
 export interface PapercraftPdf {
