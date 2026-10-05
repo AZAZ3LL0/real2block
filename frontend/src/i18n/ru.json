@@ -2,6 +2,7 @@
   "app.title": "real2block",
   "app.tagline": "Скин Minecraft → бумажная фигурка",
   "lang.label": "Язык",
+  "steps.label": "Шаги",
   "steps.upload": "Загрузка",
   "steps.processing": "Обработка",
   "steps.preview": "Превью",
