@@ -1,9 +1,17 @@
-"""Face detector model loading and integrity check (tech.md §8.2 item 7)."""
+"""Face detection: model integrity check, YuNet and a fake for tests (tech.md §5.2, §8.2)."""
 
 import hashlib
+import threading
+from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Protocol
 
 import cv2
+import numpy as np
+import numpy.typing as npt
+
+from real2block.domain.vision.loader import RgbImage
 
 YUNET_INPUT_SIZE = (320, 320)
 SHA256SUMS_NAME = "SHA256SUMS"
@@ -43,15 +51,99 @@ def verify_model(model_path: Path) -> None:
         raise ModelIntegrityError(f"{model_path.name} checksum mismatch")
 
 
-class YuNetModel:
-    """Verified, loaded YuNet network; detection itself arrives with the vision slice."""
+@dataclass(frozen=True, slots=True)
+class Point:
+    """Image point in pixels."""
+
+    x: float
+    y: float
+
+
+@dataclass(frozen=True, slots=True)
+class FaceBox:
+    """Face position and five landmarks; nothing that could identify a person (tech.md §8.1)."""
+
+    x: float
+    y: float
+    w: float
+    h: float
+    score: float
+    right_eye: Point
+    left_eye: Point
+    nose: Point
+    right_mouth: Point
+    left_mouth: Point
+
+    @property
+    def area(self) -> float:
+        """Box area in square pixels."""
+        return self.w * self.h
+
+
+class FaceDetector(Protocol):
+    """Finds faces on an upright RGB image."""
+
+    def detect(self, image: RgbImage) -> list[FaceBox]:
+        """Faces with score at or above the configured threshold."""
+        ...
+
+
+# One YuNet output row: box (4), five landmarks as x, y pairs (10), score (1).
+_BOX = slice(0, 4)
+_LANDMARKS = slice(4, 14)
+_SCORE = 14
+
+
+def _face_from_row(row: npt.NDArray[np.float32]) -> FaceBox:
+    x, y, w, h = (float(v) for v in row[_BOX])
+    coords = [float(v) for v in row[_LANDMARKS]]
+    # YuNet orders landmarks: right eye, left eye, nose tip, right and left mouth corner.
+    points = [Point(coords[i], coords[i + 1]) for i in range(0, len(coords), 2)]
+    right_eye, left_eye, nose, right_mouth, left_mouth = points
+    return FaceBox(
+        x, y, w, h, float(row[_SCORE]), right_eye, left_eye, nose, right_mouth, left_mouth
+    )
+
+
+class YuNetDetector:
+    """Verified YuNet network (tech.md §5.2, §7).
+
+    The OpenCV detector is not thread-safe and keeps the input size as state, so calls
+    are serialized with a lock on the instance.
+    """
 
     def __init__(self, model_path: Path, score_threshold: float) -> None:
         verify_model(model_path)
+        self._threshold = score_threshold
         self._detector = cv2.FaceDetectorYN.create(
             str(model_path), "", YUNET_INPUT_SIZE, score_threshold
         )
+        self._lock = threading.Lock()
 
     def is_ready(self) -> bool:
         """True once the network has been constructed."""
         return self._detector is not None
+
+    def detect(self, image: RgbImage) -> list[FaceBox]:
+        """Faces on an RGB image, best score first."""
+        height, width = image.shape[:2]
+        bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+        with self._lock:
+            self._detector.setInputSize((width, height))
+            _, rows = self._detector.detect(bgr)
+        if rows is None:
+            return []
+        faces = [_face_from_row(row) for row in rows if float(row[_SCORE]) >= self._threshold]
+        return sorted(faces, key=lambda f: f.score, reverse=True)
+
+
+class FakeDetector:
+    """Returns the faces given to it; lets analyzer tests run without the ONNX model."""
+
+    def __init__(self, faces: Sequence[FaceBox] = ()) -> None:
+        self._faces = tuple(faces)
+
+    def detect(self, image: RgbImage) -> list[FaceBox]:
+        """The configured faces, whatever the image."""
+        del image
+        return list(self._faces)
