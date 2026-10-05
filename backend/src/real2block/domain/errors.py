@@ -37,6 +37,18 @@ class Real2blockError(Exception):
         self.detail = detail
 
 
+class ConsentRequiredError(Real2blockError):
+    """Photo sent without consent to its processing."""
+
+    code = "CONSENT_REQUIRED"
+
+
+class NoFaceError(Real2blockError):
+    """No face at or above the score threshold on the photo."""
+
+    code = "NO_FACE"
+
+
 class FileTooLargeError(Real2blockError):
     """Request body exceeds the route limit."""
 
