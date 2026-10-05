@@ -12,5 +12,5 @@ if echo "$staged" | grep -q '^backend/'; then
 fi
 
 if echo "$staged" | grep -q '^frontend/'; then
-  (cd "$root/frontend" && npx tsc --noEmit && npx eslint . && npx vitest run)
+  (cd "$root/frontend" && npx tsc --noEmit && npx tsc --noEmit -p e2e && npx eslint . && npx vitest run)
 fi
