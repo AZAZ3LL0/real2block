@@ -30,9 +30,9 @@ export function Slider({ label, value, min, max, step, onChange, hint }: SliderP
         onChange={(e) => {
           onChange(Number(e.target.value));
         }}
-        className="accent-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+        className="h-11 w-full accent-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
       />
-      {hint && <p className="text-xs text-neutral-500">{hint}</p>}
+      {hint && <p className="text-xs text-neutral-600">{hint}</p>}
     </div>
   );
 }

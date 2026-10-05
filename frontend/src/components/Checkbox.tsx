@@ -19,9 +19,11 @@ export function Checkbox({ checked, onChange, children, disabled = false }: Chec
         onChange={(e) => {
           onChange(e.target.checked);
         }}
-        className="mt-0.5 h-4 w-4 rounded border-neutral-400 accent-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+        className="mt-0.5 h-5 w-5 shrink-0 rounded border-neutral-500 accent-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
       />
-      <label htmlFor={id}>{children}</label>
+      <label htmlFor={id} className="cursor-pointer">
+        {children}
+      </label>
     </div>
   );
 }

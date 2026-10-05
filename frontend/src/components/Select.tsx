@@ -26,7 +26,7 @@ export function Select<T extends string>({ label, value, options, onChange }: Se
           const next = options.find((o) => o.value === e.target.value);
           if (next) onChange(next.value);
         }}
-        className="rounded-md border border-neutral-300 bg-white px-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+        className="min-h-11 rounded-md border border-neutral-500 bg-white px-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>

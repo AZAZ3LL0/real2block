@@ -17,12 +17,12 @@ export function ColorField({ label, value, onChange }: ColorFieldProps) {
         onChange={(e) => {
           onChange(e.target.value.toUpperCase());
         }}
-        className="h-8 w-10 cursor-pointer rounded border border-neutral-300 bg-white p-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+        className="h-11 w-11 shrink-0 cursor-pointer rounded border border-neutral-500 bg-white p-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
       />
       <label htmlFor={id} className="flex-1">
         {label}
       </label>
-      <span className="font-mono text-xs text-neutral-500">{value.toUpperCase()}</span>
+      <span className="font-mono text-xs text-neutral-600">{value.toUpperCase()}</span>
     </div>
   );
 }

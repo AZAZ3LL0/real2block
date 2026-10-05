@@ -61,6 +61,14 @@ describe("Preview", () => {
     expect(viewer.resetCameraPose).toHaveBeenCalledTimes(resets + 1);
   });
 
+  it("labels the view and model controls visibly", () => {
+    renderPreview();
+    for (const name of ["View", "Model"]) {
+      expect(screen.getByText(name)).toBeVisible();
+      expect(screen.getByRole("radiogroup", { name })).toBeInTheDocument();
+    }
+  });
+
   it("has no palette for an imported skin", () => {
     renderPreview();
     expect(screen.queryByRole("group", { name: "Colors" })).not.toBeInTheDocument();
