@@ -1,7 +1,7 @@
 """Dependency container and providers for route handlers."""
 
 import asyncio
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Annotated, Protocol
 
@@ -10,6 +10,7 @@ from starlette.concurrency import run_in_threadpool
 
 from real2block.domain.errors import InternalError
 from real2block.domain.papercraft.document import PapercraftService
+from real2block.domain.stylize.base import Stylizer, StylizerId
 
 HEAVY_TIMEOUT_S = 10.0
 
@@ -45,6 +46,7 @@ class Container:
     face_model: ReadinessProbe
     papercraft: PapercraftService
     heavy: HeavyRunner
+    stylizers: Mapping[StylizerId, Stylizer]
 
 
 def get_container(request: Request) -> Container:

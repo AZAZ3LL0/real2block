@@ -23,6 +23,7 @@ from real2block.config import Settings
 from real2block.domain.papercraft.document import PapercraftService
 from real2block.domain.papercraft.pdf import PdfRenderer
 from real2block.domain.stylize.grids import TEMPLATES_DIR, load_template_dir
+from real2block.domain.stylize.template import TemplateStylizer
 from real2block.domain.vision.face import YuNetModel
 from real2block.domain.vision.loader import configure_pillow
 from real2block.log import configure_logging
@@ -100,12 +101,13 @@ def app_factory(
     """Build the app; fails fast on invalid config, templates or a tampered face model."""
     settings = settings or Settings()
     _configure_process(settings)
-    load_template_dir(templates_dir)
+    templates = load_template_dir(templates_dir)
     container = Container(
         face_model=face_model
         or YuNetModel(settings.face_model_path, settings.face_score_threshold),
         papercraft=PapercraftService(PdfRenderer()),
         heavy=HeavyRunner(),
+        stylizers=MappingProxyType({"template": TemplateStylizer.from_templates(templates)}),
     )
     app = Real2blockApp(title="real2block API", version="1", docs_url=None, redoc_url=None)
     app.state.container = container

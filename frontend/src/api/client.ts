@@ -7,6 +7,10 @@ export type NormalizeResponse = Schemas["NormalizeResponse"];
 export type PapercraftOptions = Schemas["PapercraftOptions"];
 export type PdfSettings = Pick<PapercraftOptions, "paper" | "pixel_mm" | "mode" | "grid_lines">;
 export type SkinModel = NormalizeResponse["model"];
+export type SkinSpec = Schemas["SkinSpec"];
+export type Palette = Schemas["Palette"];
+export type PaletteRole = keyof Palette;
+export type HairStyle = SkinSpec["hair_style"];
 
 const BASE = "/api/v1";
 const WARNINGS_HEADER = "X-Real2block-Warnings";
@@ -18,16 +22,30 @@ export class ApiError extends Error {
   }
 }
 
+export function isAbort(err: unknown): boolean {
+  return err instanceof DOMException && err.name === "AbortError";
+}
+
 function isErrorResponse(body: unknown): body is Schemas["ErrorResponse"] {
   return typeof body === "object" && body !== null && "error" in body;
 }
 
-async function send(path: string, body: FormData, signal?: AbortSignal): Promise<Response> {
+async function send(
+  path: string,
+  body: BodyInit,
+  signal?: AbortSignal,
+  headers?: HeadersInit,
+): Promise<Response> {
   let response: Response;
   try {
-    response = await fetch(`${BASE}${path}`, { method: "POST", body, signal: signal ?? null });
+    response = await fetch(`${BASE}${path}`, {
+      method: "POST",
+      body,
+      signal: signal ?? null,
+      ...(headers ? { headers } : {}),
+    });
   } catch (err) {
-    if (err instanceof DOMException && err.name === "AbortError") throw err;
+    if (isAbort(err)) throw err;
     throw new ApiError("INTERNAL");
   }
   if (response.ok) return response;
@@ -78,4 +96,11 @@ export async function papercraft(
   form.append("options", JSON.stringify(options));
   const response = await send("/papercraft", form, signal);
   return { pdf: await response.blob(), warnings: parseWarnings(response.headers.get(WARNINGS_HEADER)) };
+}
+
+export async function renderSkin(spec: SkinSpec, signal?: AbortSignal): Promise<Blob> {
+  const response = await send("/skin", JSON.stringify(spec), signal, {
+    "Content-Type": "application/json",
+  });
+  return response.blob();
 }

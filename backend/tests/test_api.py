@@ -22,7 +22,7 @@ from real2block.config import Settings
 from real2block.domain.papercraft.document import PapercraftResult, PrintOptions
 from real2block.log import JsonFormatter
 from real2block.main import app_factory
-from tests.helpers import blank, png_bytes
+from tests.helpers import FIXTURES, blank, decode_png, png_bytes
 
 API = "/api/v1"
 A4_PT = (595.28, 841.89)
@@ -109,6 +109,17 @@ def test_body_limit_returns_413(client: TestClient) -> None:
     assert _error_code(response) == "FILE_TOO_LARGE"
 
 
+def test_photo_over_limit_returns_413(client: TestClient) -> None:
+    jpeg = b"\xff\xd8\xff\xe0" + b"\0" * (10 * 1024 * 1024)
+    response = client.post(
+        f"{API}/analyze",
+        files={"photo": ("photo.jpg", jpeg, "image/jpeg")},
+        data={"consent": "true"},
+    )
+    assert response.status_code == 413
+    assert _error_code(response) == "FILE_TOO_LARGE"
+
+
 def test_rate_limit_returns_429(reference_png: bytes) -> None:
     with TestClient(make_app(rate_papercraft_per_hour=2)) as client:
         statuses = [_papercraft(client, reference_png).status_code for _ in range(3)]
@@ -169,6 +180,95 @@ def test_normalize_requires_file(client: TestClient) -> None:
     response = client.post(f"{API}/skin/normalize")
     assert response.status_code == 422
     assert _error_code(response) == "INVALID_SKIN"
+
+
+# /skin
+
+
+def _palette(**changes: str) -> dict[str, str]:
+    body: dict[str, dict[str, str]] = json.loads((FIXTURES / "stylize_spec.json").read_text())
+    return {**body["palette"], **changes}
+
+
+def _spec(**overrides: object) -> dict[str, object]:
+    return {"palette": _palette(), **overrides}
+
+
+def test_skin_returns_png_matching_golden(client: TestClient) -> None:
+    response = client.post(f"{API}/skin", json=_spec(model="slim", hair_style="long"))
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+    with Image.open(io.BytesIO(response.content)) as img:
+        assert (img.size, img.mode) == ((64, 64), "RGBA")
+    golden = decode_png((FIXTURES / "stylize_long_slim.png").read_bytes())
+    np.testing.assert_array_equal(decode_png(response.content), golden)
+
+
+def test_skin_defaults_to_classic_short(client: TestClient) -> None:
+    response = client.post(f"{API}/skin", json=_spec())
+    golden = decode_png((FIXTURES / "stylize_short_classic.png").read_bytes())
+    np.testing.assert_array_equal(decode_png(response.content), golden)
+
+
+def test_skin_accepts_lower_case_hex(client: TestClient) -> None:
+    palette = {role: value.lower() for role, value in _palette().items()}
+    response = client.post(f"{API}/skin", json=_spec(palette=palette))
+    golden = decode_png((FIXTURES / "stylize_short_classic.png").read_bytes())
+    np.testing.assert_array_equal(decode_png(response.content), golden)
+
+
+def test_skin_ignores_face_front_for_template(client: TestClient) -> None:
+    response = client.post(f"{API}/skin", json=_spec(face_front=[["#000000"]]))
+    assert response.status_code == 200
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        _spec(palette=_palette(skin="#12345")),
+        _spec(palette=_palette(skin="red")),
+        _spec(palette={"skin": "#123456"}),
+        _spec(palette={k: v for k, v in _palette().items() if k != "skin"}),
+        _spec(palette=_palette(cape="#123456")),
+        _spec(spec_version=2),
+        _spec(hair_style="mohawk"),
+        _spec(model="auto"),
+        _spec(skin="#123456"),
+        _spec(stylizer="downsample"),
+        _spec(stylizer="downsample", face_front=[["#000000"] * 8] * 7),
+        _spec(stylizer="downsample", face_front=[["#000000"] * 7] * 8),
+        {},
+    ],
+)
+def test_skin_rejects_invalid_spec(client: TestClient, body: dict[str, object]) -> None:
+    response = client.post(f"{API}/skin", json=body)
+    assert response.status_code == 422
+    assert _error_code(response) == "INVALID_SPEC"
+
+
+def test_skin_rejects_non_json_body(client: TestClient) -> None:
+    response = client.post(f"{API}/skin", content=b"not json")
+    assert _error_code(response) == "INVALID_SPEC"
+
+
+def test_skin_body_limit(client: TestClient) -> None:
+    response = client.post(f"{API}/skin", json=_spec(face_front=[["#000000"] * 8] * 300))
+    assert response.status_code == 413
+
+
+def test_openapi_publishes_skin_spec() -> None:
+    schemas = make_app().openapi()["components"]["schemas"]
+    assert set(schemas["Palette"]["required"]) == {
+        "skin",
+        "hair",
+        "eye_white",
+        "iris",
+        "mouth",
+        "shirt",
+        "pants",
+        "shoes",
+    }
+    assert schemas["SkinSpec"]["required"] == ["palette"]
 
 
 # /papercraft

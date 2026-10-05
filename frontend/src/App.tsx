@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
-import { ApiError, normalizeSkin, papercraft, type ErrorCode } from "./api/client";
+import { ApiError, isAbort, normalizeSkin, papercraft, type ErrorCode } from "./api/client";
 import { Alert } from "./components/Alert";
 import { SegmentedControl } from "./components/SegmentedControl";
 import { Stepper } from "./components/Stepper";
@@ -12,13 +12,10 @@ import { Download } from "./steps/Download";
 import { Preview } from "./steps/Preview";
 import { Processing } from "./steps/Processing";
 import { Upload } from "./steps/Upload";
+import { useDebouncedSkin } from "./useDebouncedSkin";
 
 const PDF_NAME = "real2block-figure.pdf";
 const PNG_NAME = "real2block-skin.png";
-
-function isAbort(err: unknown): boolean {
-  return err instanceof DOMException && err.name === "AbortError";
-}
 
 function useAbortable() {
   const current = useRef<AbortController | null>(null);
@@ -64,6 +61,13 @@ function useSkinFlow() {
     if (isAbort(err)) return;
     dispatch({ type: "failed", code: err instanceof ApiError ? err.code : "INTERNAL" });
   }, []);
+
+  useDebouncedSkin(state.spec, {
+    onSkin: (skin) => {
+      dispatch({ type: "styled", skin });
+    },
+    onError: fail,
+  });
 
   const importSkin = (file: File) => {
     dispatch({ type: "start" });
@@ -121,8 +125,12 @@ function StepView({ flow }: { flow: Flow }) {
         <Preview
           skin={state.skin}
           model={state.model}
+          spec={state.spec}
           onModel={(model) => {
             dispatch({ type: "setModel", model });
+          }}
+          onSpec={(spec) => {
+            dispatch({ type: "setSpec", spec });
           }}
           onNext={() => {
             dispatch({ type: "goto", step: "download" });

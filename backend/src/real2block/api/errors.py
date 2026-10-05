@@ -52,6 +52,7 @@ FIELD_CODES: Mapping[str, ErrorCode] = MappingProxyType(
     {"skin": "INVALID_SKIN", "options": "INVALID_OPTIONS"}
 )
 DEFAULT_VALIDATION_CODE: ErrorCode = "INVALID_SPEC"
+JSON_CONTENT_TYPE = "application/json"
 
 ERROR_RESPONSES: dict[int | str, dict[str, object]] = {
     status: {"model": ErrorResponse} for status in sorted(set(STATUS.values()))
@@ -66,11 +67,16 @@ def error_response(code: ErrorCode) -> JSONResponse:
     return JSONResponse(body.model_dump(), status_code=STATUS[code])
 
 
-def _validation_code(exc: RequestValidationError) -> ErrorCode:
+def _validation_code(request: Request, exc: RequestValidationError) -> ErrorCode:
+    # A JSON body is always a SkinSpec: its keys, such as palette.skin, must not
+    # read as the `skin` upload of the form routes.
+    if request.headers.get("content-type", "").startswith(JSON_CONTENT_TYPE):
+        return DEFAULT_VALIDATION_CODE
     for err in exc.errors():
-        for part in err.get("loc", ()):
-            if isinstance(part, str) and part in FIELD_CODES:
-                return FIELD_CODES[part]
+        loc = err.get("loc", ())
+        field = loc[1] if len(loc) > 1 else None
+        if isinstance(field, str) and field in FIELD_CODES:
+            return FIELD_CODES[field]
     return DEFAULT_VALIDATION_CODE
 
 
@@ -82,10 +88,10 @@ async def _domain_handler(_: Request, exc: Exception) -> JSONResponse:
     return error_response(exc.code)
 
 
-async def _validation_handler(_: Request, exc: Exception) -> JSONResponse:
+async def _validation_handler(request: Request, exc: Exception) -> JSONResponse:
     if not isinstance(exc, RequestValidationError):
         raise exc
-    code = _validation_code(exc)
+    code = _validation_code(request, exc)
     logger.info("validation failed", extra={"codes": [code]})
     return error_response(code)
 

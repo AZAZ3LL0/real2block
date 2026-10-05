@@ -24,6 +24,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/skin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Render Skin
+         * @description Generate the skin PNG for a spec.
+         */
+        post: operations["render_skin_api_v1_skin_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/skin/normalize": {
         parameters: {
             query?: never;
@@ -132,6 +152,61 @@ export interface components {
             warnings: ("MULTIPLE_FACES" | "FACE_TOO_SMALL" | "LOW_LIGHT" | "HAIR_NOT_DETECTED" | "TORSO_NOT_VISIBLE" | "PALETTE_REDUCED" | "TRANSPARENT_BASE_PIXELS")[];
         };
         /**
+         * Palette
+         * @description Base color of every palette role.
+         */
+        Palette: {
+            /** Skin */
+            skin: string;
+            /** Hair */
+            hair: string;
+            /** Eye White */
+            eye_white: string;
+            /** Iris */
+            iris: string;
+            /** Mouth */
+            mouth: string;
+            /** Shirt */
+            shirt: string;
+            /** Pants */
+            pants: string;
+            /** Shoes */
+            shoes: string;
+        };
+        /**
+         * SkinSpec
+         * @description Everything needed to regenerate a skin; the client keeps it between calls.
+         */
+        SkinSpec: {
+            /**
+             * Spec Version
+             * @default 1
+             * @constant
+             */
+            spec_version: 1;
+            /**
+             * Model
+             * @default classic
+             * @enum {string}
+             */
+            model: "classic" | "slim";
+            /**
+             * Stylizer
+             * @default template
+             * @enum {string}
+             */
+            stylizer: "template" | "downsample";
+            /**
+             * Hair Style
+             * @default short
+             * @enum {string}
+             */
+            hair_style: "short" | "long" | "bald" | "fringe";
+            palette: components["schemas"]["Palette"];
+            /** Face Front */
+            face_front?: string[][] | null;
+        };
+        /**
          * PapercraftOptions
          * @description Papercraft PDF options.
          */
@@ -201,6 +276,84 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    render_skin_api_v1_skin_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SkinSpec"];
+            };
+        };
+        responses: {
+            /** @description 64x64 RGBA skin */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": unknown;
                 };
             };
             /** @description Bad Request */

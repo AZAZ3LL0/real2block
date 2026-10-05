@@ -1,10 +1,30 @@
 """Pydantic request/response schemas; the API contract (tech.md §5.4)."""
 
-from typing import Literal
+from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    model_validator,
+)
 
+from real2block.domain.color import Rgb
 from real2block.domain.errors import ErrorCode, WarningCode
+from real2block.domain.skin.geometry import Model, part_box
+from real2block.domain.stylize import base
+from real2block.domain.stylize.base import HairStyle, StylizerId
+
+HexColor = Annotated[
+    str, StringConstraints(pattern=r"^#[0-9A-Fa-f]{6}$"), AfterValidator(str.upper)
+]
+"""`#RRGGBB`, normalized to upper case."""
+
+_HEAD = part_box("head")
+FACE_FRONT_SHAPE = (_HEAD.h, _HEAD.w)
+"""Rows and columns of `face_front`: the size of the head front face."""
 
 
 class StrictModel(BaseModel):
@@ -51,3 +71,51 @@ class PapercraftOptions(StrictModel):
     flatten_overlay: bool = True
     grid_lines: bool = True
     lang: Literal["ru", "en"] = "ru"
+
+
+class Palette(StrictModel):
+    """Base color of every palette role."""
+
+    skin: HexColor
+    hair: HexColor
+    eye_white: HexColor
+    iris: HexColor
+    mouth: HexColor
+    shirt: HexColor
+    pants: HexColor
+    shoes: HexColor
+
+
+class SkinSpec(StrictModel):
+    """Everything needed to regenerate a skin; the client keeps it between calls."""
+
+    spec_version: Literal[1] = 1
+    model: Model = "classic"
+    stylizer: StylizerId = "template"
+    hair_style: HairStyle = "short"
+    palette: Palette
+    face_front: list[list[HexColor]] | None = None
+
+    @model_validator(mode="after")
+    def _check_face_front(self) -> Self:
+        if self.stylizer != "downsample":
+            return self
+        rows, cols = FACE_FRONT_SHAPE
+        face = self.face_front
+        if face is None or len(face) != rows or any(len(row) != cols for row in face):
+            raise ValueError(f"face_front must be {rows}x{cols} for the downsample stylizer")
+        return self
+
+    def to_domain(self) -> base.SkinSpec:
+        """Domain spec with colors parsed into `Rgb`."""
+        palette = base.Palette(
+            **{role: Rgb.from_hex(value) for role, value in self.palette.model_dump().items()}
+        )
+        face = self.face_front
+        return base.SkinSpec(
+            model=self.model,
+            stylizer=self.stylizer,
+            hair_style=self.hair_style,
+            palette=palette,
+            face_front=tuple(tuple(map(Rgb.from_hex, row)) for row in face) if face else None,
+        )

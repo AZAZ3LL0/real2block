@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiError, normalizeSkin, papercraft } from "./client";
+import { SPEC } from "../test/spec";
+import { ApiError, normalizeSkin, papercraft, renderSkin } from "./client";
 
 function respond(body: BodyInit, init: ResponseInit): void {
   vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response(body, init))));
@@ -42,5 +43,20 @@ describe("api client", () => {
     const init = vi.mocked(fetch).mock.calls[0]?.[1];
     const options = (init?.body as FormData).get("options");
     expect(typeof options === "string" && JSON.parse(options)).toEqual({ model: "classic", lang: "en" });
+  });
+
+  it("posts the spec as JSON and returns the PNG", async () => {
+    respond("PNG", { status: 200, headers: { "Content-Type": "image/png" } });
+    const skin = await renderSkin(SPEC);
+    expect(await skin.text()).toBe("PNG");
+    const [url, init] = vi.mocked(fetch).mock.calls[0] ?? [];
+    expect(url).toBe("/api/v1/skin");
+    expect(new Headers(init?.headers).get("Content-Type")).toBe("application/json");
+    expect(JSON.parse(init?.body as string)).toEqual(SPEC);
+  });
+
+  it("maps an invalid spec to ApiError", async () => {
+    respond(JSON.stringify({ error: { code: "INVALID_SPEC", message: "x", request_id: "r" } }), { status: 422 });
+    await expect(renderSkin(SPEC)).rejects.toEqual(new ApiError("INVALID_SPEC"));
   });
 });
