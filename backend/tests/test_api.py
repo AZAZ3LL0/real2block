@@ -109,6 +109,17 @@ def test_body_limit_returns_413(client: TestClient) -> None:
     assert _error_code(response) == "FILE_TOO_LARGE"
 
 
+def test_photo_over_limit_returns_413(client: TestClient) -> None:
+    jpeg = b"\xff\xd8\xff\xe0" + b"\0" * (10 * 1024 * 1024)
+    response = client.post(
+        f"{API}/analyze",
+        files={"photo": ("photo.jpg", jpeg, "image/jpeg")},
+        data={"consent": "true"},
+    )
+    assert response.status_code == 413
+    assert _error_code(response) == "FILE_TOO_LARGE"
+
+
 def test_rate_limit_returns_429(reference_png: bytes) -> None:
     with TestClient(make_app(rate_papercraft_per_hour=2)) as client:
         statuses = [_papercraft(client, reference_png).status_code for _ in range(3)]
