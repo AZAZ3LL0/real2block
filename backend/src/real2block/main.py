@@ -22,6 +22,8 @@ from real2block.api.schemas import PapercraftOptions
 from real2block.config import Settings
 from real2block.domain.papercraft.document import PapercraftService
 from real2block.domain.papercraft.pdf import PdfRenderer
+from real2block.domain.stylize.base import Stylizer, StylizerId
+from real2block.domain.stylize.downsample import DownsampleStylizer
 from real2block.domain.stylize.grids import TEMPLATES_DIR, load_template_dir
 from real2block.domain.stylize.template import TemplateStylizer
 from real2block.domain.vision.analyzer import PhotoAnalyzer
@@ -94,6 +96,11 @@ class Real2blockApp(FastAPI):
         return super().openapi()
 
 
+def _stylizers(template: TemplateStylizer) -> Mapping[StylizerId, Stylizer]:
+    """Registry looked up by `spec.stylizer`; handlers never branch on it (tech.md §5.3)."""
+    return MappingProxyType({"template": template, "downsample": DownsampleStylizer(template)})
+
+
 def _face_parts(
     settings: Settings, face_model: ReadinessProbe | None, detector: FaceDetector | None
 ) -> tuple[ReadinessProbe, FaceDetector]:
@@ -119,7 +126,7 @@ def app_factory(
         face_model=face_model,
         papercraft=PapercraftService(PdfRenderer()),
         heavy=HeavyRunner(),
-        stylizers=MappingProxyType({"template": TemplateStylizer.from_templates(templates)}),
+        stylizers=_stylizers(TemplateStylizer.from_templates(templates)),
         analyzer=PhotoAnalyzer(detector),
     )
     app = Real2blockApp(title="real2block API", version="1", docs_url=None, redoc_url=None)

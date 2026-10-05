@@ -73,6 +73,12 @@ class ImageTooLargeError(Real2blockError):
     code = "IMAGE_TOO_LARGE"
 
 
+class InvalidSpecError(Real2blockError):
+    """Skin spec is inconsistent with its stylizer."""
+
+    code = "INVALID_SPEC"
+
+
 class InvalidSkinError(Real2blockError):
     """Skin image is malformed or has wrong dimensions."""
 

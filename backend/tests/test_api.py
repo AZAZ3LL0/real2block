@@ -23,6 +23,7 @@ from real2block.api.deps import Container
 from real2block.config import Settings
 from real2block.domain.color import Rgb, to_lab
 from real2block.domain.papercraft.document import PapercraftResult, PrintOptions
+from real2block.domain.skin.geometry import face_rect
 from real2block.domain.vision.face import FaceBox, FaceDetector, FakeDetector
 from real2block.domain.vision.loader import RgbImage
 from real2block.log import JsonFormatter
@@ -440,6 +441,25 @@ def test_analyze_returns_a_spec_the_skin_route_accepts() -> None:
     skin = client.post(f"{API}/skin", json=spec)
     assert skin.status_code == 200
     assert decode_png(skin.content).shape == (64, 64, 4)
+
+
+def test_analyzed_spec_switches_to_the_photo_face() -> None:
+    scene = Portrait()
+    client = _analyze_client(FakeDetector([scene.box()]))
+    spec = _analyze(client, png_bytes(scene.render())).json()["spec"]
+    template = decode_png(client.post(f"{API}/skin", json=spec).content)
+    downsample = decode_png(
+        client.post(f"{API}/skin", json={**spec, "stylizer": "downsample"}).content
+    )
+    # Only the head front may differ, and it is the photo face.
+    r = face_rect("head", "front", "base", "classic")
+    changed = np.argwhere((template != downsample).any(axis=2))
+    assert len(changed) > 0
+    assert changed.min(axis=0).tolist() >= [r.y, r.x]
+    assert changed.max(axis=0).tolist() <= [r.y + r.h - 1, r.x + r.w - 1]
+    face = [[Rgb.from_hex(c) for c in row] for row in spec["face_front"]]
+    front = downsample[r.y : r.y + r.h, r.x : r.x + r.w]
+    assert [[Rgb(*map(int, px[:3])) for px in row] for row in front] == face
 
 
 @pytest.mark.parametrize("path", sorted((FIXTURES / "photos").glob("*.jpg")), ids=lambda p: p.stem)
