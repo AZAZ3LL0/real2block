@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import en from "./en.json";
 import ru from "./ru.json";
 
@@ -28,6 +28,10 @@ const I18nContext = createContext<I18n | null>(null);
 
 export function I18nProvider({ children, initial }: { children: ReactNode; initial?: Lang }) {
   const [lang, setLang] = useState<Lang>(initial ?? detectLang(navigator.language));
+  // Screen readers and hyphenation pick the language from <html lang>.
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
   const value = useMemo<I18n>(
     () => ({ lang, setLang, t: (key, params) => format(MESSAGES[lang][key], params) }),
     [lang],
