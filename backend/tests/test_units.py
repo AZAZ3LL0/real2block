@@ -12,7 +12,7 @@ from real2block.api.deps import HeavyRunner
 from real2block.api.middleware import TokenBucket
 from real2block.config import Settings
 from real2block.domain.errors import InternalError
-from real2block.domain.vision.face import ModelIntegrityError, YuNetModel
+from real2block.domain.vision.face import ModelIntegrityError, YuNetDetector
 
 MODEL = Path("models/face_detection_yunet_2023mar.onnx")
 
@@ -29,7 +29,7 @@ def test_invalid_env_value_fails_fast() -> None:
 
 
 def test_model_loads_when_checksum_matches() -> None:
-    assert YuNetModel(MODEL, 0.8).is_ready()
+    assert YuNetDetector(MODEL, 0.8).is_ready()
 
 
 def test_tampered_model_is_rejected(tmp_path: Path) -> None:
@@ -37,12 +37,12 @@ def test_tampered_model_is_rejected(tmp_path: Path) -> None:
     shutil.copy(MODEL.parent / "SHA256SUMS", tmp_path / "SHA256SUMS")
     model.write_bytes(MODEL.read_bytes() + b"\0")
     with pytest.raises(ModelIntegrityError):
-        YuNetModel(model, 0.8)
+        YuNetDetector(model, 0.8)
 
 
 def test_missing_model_is_rejected(tmp_path: Path) -> None:
     with pytest.raises(ModelIntegrityError):
-        YuNetModel(tmp_path / MODEL.name, 0.8)
+        YuNetDetector(tmp_path / MODEL.name, 0.8)
 
 
 def test_token_bucket_refills_over_an_hour() -> None:
