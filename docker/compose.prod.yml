@@ -1,0 +1,16 @@
+# Production override: public domain, automatic HTTPS, API in prod mode.
+#   docker compose -f docker/compose.yml -f docker/compose.prod.yml up -d
+# SITE_ADDRESS comes from docker/.env (see docker/.env.example); IP_HASH_SALT
+# from backend/.env, and the API refuses to start in prod without it.
+services:
+  api:
+    environment:
+      APP_ENV: prod
+
+  caddy:
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS to the public domain}
+    ports: !override
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+      - "${HTTPS_PORT:-443}:443/udp"

@@ -1,0 +1,10 @@
+# Benchmark override for backend/scripts/bench_p95.py (tech.md §7):
+#   docker compose -f docker/compose.yml -f docker/compose.bench.yml up -d --build --wait
+# Pins the API to the 2 vCPU the budgets assume and lifts the per-hour limits
+# that a few hundred sequential calls would hit. Never deploy with it.
+services:
+  api:
+    cpus: 2
+    environment:
+      RATE_ANALYZE_PER_HOUR: "100000"
+      RATE_PAPERCRAFT_PER_HOUR: "100000"

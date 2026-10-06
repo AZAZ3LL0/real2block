@@ -11,7 +11,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from real2block.api.errors import error_response
 from real2block.domain.errors import ErrorCode
-from real2block.log import request_id_var
+from real2block.log import request_codes_var, request_id_var
 
 logger = logging.getLogger("real2block.access")
 
@@ -71,6 +71,8 @@ class RequestContextMiddleware:
             return
         request_id = uuid.uuid4().hex
         token = request_id_var.set(request_id)
+        codes: list[str] = []
+        codes_token = request_codes_var.set(codes)
         started = time.perf_counter()
         status = 500
         response_started = False
@@ -102,8 +104,10 @@ class RequestContextMiddleware:
                     "status": status,
                     "duration_ms": round((time.perf_counter() - started) * 1000, 1),
                     "size": _content_length(scope),
+                    "codes": codes,
                 },
             )
+            request_codes_var.reset(codes_token)
             request_id_var.reset(token)
 
 

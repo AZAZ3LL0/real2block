@@ -1,11 +1,19 @@
 name: real2block
 
+# Bounded JSON logs: `docker compose logs` keeps working without filling the disk.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "5"
+
 services:
   api:
     build:
       context: ..
       dockerfile: docker/Dockerfile.api
     image: real2block-api
+    logging: *logging
     env_file:
       - path: ../backend/.env
         required: false
@@ -30,6 +38,7 @@ services:
       dockerfile: docker/Dockerfile.web
       target: web
     image: real2block-web
+    logging: *logging
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:-:80}
     ports:

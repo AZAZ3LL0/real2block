@@ -2,10 +2,13 @@
 	admin off
 }
 
+# A domain here turns on automatic HTTPS (ACME) and the HTTP to HTTPS redirect.
 {$SITE_ADDRESS::80} {
 	encode zstd gzip
 
 	# No access log: it would record client IPs (tech.md §8.1).
+	# Deleting a header defers the whole block, so these values replace the
+	# copies the API sets itself instead of being sent twice.
 	header {
 		Content-Security-Policy "default-src 'self'; img-src 'self' blob: data:; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
 		X-Content-Type-Options "nosniff"
@@ -13,6 +16,13 @@
 		X-Frame-Options "DENY"
 		Permissions-Policy "camera=(), microphone=(), geolocation=()"
 		-Server
+	}
+
+	# HSTS is meaningless over plain HTTP, so the local :80 stack never sends it.
+	@https protocol https
+	header @https {
+		defer
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 	}
 
 	handle /api/* {

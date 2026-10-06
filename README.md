@@ -43,6 +43,38 @@ docker compose -f docker/compose.yml up             # api + caddy on http://loca
 docker compose -f docker/compose.yml --profile dev up  # plus vite on :5173
 ```
 
+## Production
+
+On a host with ports 80 and 443 open and a DNS record for the domain pointing at it:
+
+```bash
+cp docker/.env.example docker/.env            # set SITE_ADDRESS to the domain
+echo "IP_HASH_SALT=$(openssl rand -hex 32)" > backend/.env
+docker compose -f docker/compose.yml -f docker/compose.prod.yml up -d --build
+docker/smoke-https.sh <domain>
+```
+
+Caddy gets the certificate over ACME, redirects HTTP to HTTPS and adds HSTS; certificates live in the `caddy_data` volume. The API runs with `APP_ENV=prod`: CORS off, HSTS on, and it refuses to start without a 32-byte salt.
+
+### Logs and monitoring
+
+The API writes one JSON line per request to stdout: `request_id`, route, method, status, `duration_ms`, body size and the warning or error codes of that request. No file names, image bytes or client addresses. Docker keeps 5 × 10 MB per container:
+
+```bash
+docker compose -f docker/compose.yml logs -f api
+```
+
+`docker/healthcheck.sh https://<domain>` checks that `/api/v1/healthz` answers ok and that the certificate has at least 14 days left. The `Uptime` workflow runs it every 15 minutes once the repository variable `SITE_URL` is set; a failed run is the alert.
+
+### Performance
+
+`backend/scripts/bench_p95.py` measures the p95 budgets of tech.md §7 against a stack pinned to 2 vCPU with the per-hour limits lifted. CI runs it in the `perf` job.
+
+```bash
+docker compose -f docker/compose.yml -f docker/compose.bench.yml up -d --build --wait
+cd backend && uv run python scripts/bench_p95.py
+```
+
 ## Git hooks
 
 ```bash

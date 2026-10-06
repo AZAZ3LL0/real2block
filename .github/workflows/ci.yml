@@ -111,6 +111,47 @@ jobs:
           docker compose -f docker/compose.yml logs --no-color api caddy | tail -n 200
           docker compose -f docker/compose.yml down
 
+  https:
+    runs-on: ubuntu-latest
+    env:
+      COMPOSE: docker compose -f docker/compose.yml -f docker/compose.prod.yml
+      # localhost makes Caddy issue from its internal CA instead of ACME.
+      SITE_ADDRESS: localhost
+      HTTP_PORT: "8080"
+      HTTPS_PORT: "8443"
+    steps:
+      - uses: actions/checkout@v5
+      - name: Write a throwaway prod salt
+        run: echo "IP_HASH_SALT=$(openssl rand -hex 32)" > backend/.env
+      - name: Start the production stack
+        run: $COMPOSE up -d --build --wait
+      - run: docker/smoke-https.sh localhost "$HTTP_PORT" "$HTTPS_PORT"
+        env:
+          CURL_OPTS: -k
+      - name: Stop the stack
+        if: always()
+        run: |
+          $COMPOSE logs --no-color api caddy | tail -n 200
+          $COMPOSE down
+
+  perf:
+    runs-on: ubuntu-latest
+    env:
+      COMPOSE: docker compose -f docker/compose.yml -f docker/compose.bench.yml
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen --no-dev
+        working-directory: backend
+      - name: Start the stack on 2 vCPU
+        run: $COMPOSE up -d --build --wait
+      # p95 budgets of tech.md §7; the script exits 1 when one is exceeded.
+      - run: .venv/bin/python scripts/bench_p95.py http://localhost:8080
+        working-directory: backend
+      - name: Stop the stack
+        if: always()
+        run: $COMPOSE down
+
   images:
     runs-on: ubuntu-latest
     steps:
