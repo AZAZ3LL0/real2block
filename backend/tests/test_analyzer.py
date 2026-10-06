@@ -1,5 +1,7 @@
 """PhotoAnalyzer with FakeDetector on synthetic photos (tech.md §5.2, §10.6)."""
 
+from dataclasses import replace
+
 import pytest
 
 from real2block.domain.color import Rgb, delta_e, to_lab
@@ -7,13 +9,14 @@ from real2block.domain.errors import NoFaceError
 from real2block.domain.vision.analyzer import (
     DEFAULT_EYE_WHITE,
     DEFAULT_HAIR,
+    DEFAULT_IRIS,
     DEFAULT_PANTS,
     DEFAULT_SHIRT,
     DEFAULT_SHOES,
     AnalyzeResult,
     PhotoAnalyzer,
 )
-from real2block.domain.vision.face import FaceBox, FakeDetector
+from real2block.domain.vision.face import FaceBox, FakeDetector, Point
 from real2block.domain.vision.loader import configure_pillow
 from tests.helpers import png_bytes
 from tests.portrait import Portrait
@@ -62,6 +65,51 @@ def test_spec_starts_from_the_template_defaults() -> None:
 def test_no_face_is_an_error() -> None:
     with pytest.raises(NoFaceError):
         PhotoAnalyzer(FakeDetector()).analyze(png_bytes(Portrait().render()))
+
+
+def _analyze_box(scene: Portrait, face: FaceBox) -> AnalyzeResult:
+    return PhotoAnalyzer(FakeDetector([face])).analyze(png_bytes(scene.render()))
+
+
+def test_face_outside_the_frame_is_no_face() -> None:
+    # Detectors report partly visible faces; with both cheeks off frame there is no skin.
+    scene = Portrait()
+    face = scene.box()
+    off = -2.0 * scene.width
+
+    def move(p: Point) -> Point:
+        return Point(p.x + off, p.y)
+
+    gone = replace(
+        face,
+        x=face.x + off,
+        right_eye=move(face.right_eye),
+        left_eye=move(face.left_eye),
+        nose=move(face.nose),
+        right_mouth=move(face.right_mouth),
+        left_mouth=move(face.left_mouth),
+    )
+    with pytest.raises(NoFaceError):
+        _analyze_box(scene, gone)
+
+
+def test_eyes_above_the_frame_get_the_default_iris() -> None:
+    scene = Portrait()
+    face = scene.box()
+    y = -0.1 * face.w
+    cut = replace(
+        face,
+        right_eye=Point(face.right_eye.x, y),
+        left_eye=Point(face.left_eye.x, y),
+    )
+    assert _analyze_box(scene, cut).spec.palette.iris == DEFAULT_IRIS
+
+
+def test_swapped_mouth_corners_keep_the_mouth_color() -> None:
+    scene = Portrait()
+    face = scene.box()
+    swapped = replace(face, right_mouth=face.left_mouth, left_mouth=face.right_mouth)
+    assert _close(_analyze_box(scene, swapped).spec.palette.mouth, scene.mouth)
 
 
 def test_torso_off_frame_keeps_the_default_shirt() -> None:

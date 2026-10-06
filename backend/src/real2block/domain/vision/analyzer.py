@@ -17,6 +17,8 @@ DEFAULT_SHIRT = Rgb(0x3F, 0xA7, 0xA0)
 DEFAULT_PANTS = Rgb(0x2E, 0x3A, 0x8C)
 DEFAULT_SHOES = Rgb(0x3A, 0x3A, 0x3A)
 DEFAULT_EYE_WHITE = Rgb(0xFF, 0xFF, 0xFF)
+DEFAULT_IRIS = Rgb(0x3B, 0x2A, 0x1A)
+DEFAULT_MOUTH = Rgb(0x9C, 0x5B, 0x4E)
 """Role defaults from tech.md §5.1; pants, shoes and eye whites are never sampled."""
 
 MIN_FACE_WIDTH = 64
@@ -60,6 +62,11 @@ def face_front(image: RgbImage, face: FaceBox) -> tuple[tuple[Rgb, ...], ...]:
     )
 
 
+def _or_default(lab: sampling.Lab | None, default: Rgb) -> Rgb:
+    """Sampled color, or the tech.md §5.1 default for a role not found on the photo."""
+    return default if lab is None else from_lab(lab)
+
+
 class PhotoAnalyzer:
     """Pure in meaning: the photo lives only inside `analyze` (tech.md §8.1)."""
 
@@ -95,6 +102,9 @@ class PhotoAnalyzer:
         image: RgbImage, face: FaceBox, warnings: list[WarningCode]
     ) -> tuple[Palette, HairStyle]:
         skin = sampling.skin_lab(image, face)
+        if skin is None:
+            # Skin has no default in tech.md §5.1: a face without visible cheeks is unusable.
+            raise NoFaceError("both cheeks are outside the frame")
         background = sampling.background_lab(image)
         hair = sampling.hair_lab(image, face, skin, background)
         shirt = sampling.shirt_lab(image, face, skin)
@@ -108,11 +118,11 @@ class PhotoAnalyzer:
             warnings.append("TORSO_NOT_VISIBLE")
         palette = Palette(
             skin=from_lab(skin),
-            hair=DEFAULT_HAIR if hair is None else from_lab(hair),
+            hair=_or_default(hair, DEFAULT_HAIR),
             eye_white=DEFAULT_EYE_WHITE,
-            iris=from_lab(sampling.iris_lab(image, face)),
-            mouth=from_lab(sampling.mouth_lab(image, face)),
-            shirt=DEFAULT_SHIRT if shirt is None else from_lab(shirt),
+            iris=_or_default(sampling.iris_lab(image, face), DEFAULT_IRIS),
+            mouth=_or_default(sampling.mouth_lab(image, face), DEFAULT_MOUTH),
+            shirt=_or_default(shirt, DEFAULT_SHIRT),
             pants=DEFAULT_PANTS,
             shoes=DEFAULT_SHOES,
         )
