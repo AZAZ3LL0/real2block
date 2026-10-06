@@ -478,6 +478,70 @@ def test_analyze_real_photos_with_yunet(client: TestClient, path: Path) -> None:
     assert b > 0
 
 
+# access log (tech.md §2, §8.1 item 6)
+
+
+class _LogCapture:
+    """JSON lines of the access logger, captured after the app configured logging."""
+
+    def __init__(self) -> None:
+        self.stream = io.StringIO()
+        self.handler = logging.StreamHandler(self.stream)
+        self.handler.setFormatter(JsonFormatter())
+
+    def access(self) -> list[dict[str, object]]:
+        records = [json.loads(line) for line in self.stream.getvalue().splitlines()]
+        return [r for r in records if r["logger"] == "real2block.access"]
+
+
+@pytest.fixture
+def access_log() -> Iterator[_LogCapture]:
+    capture = _LogCapture()
+    yield capture
+    logging.getLogger().removeHandler(capture.handler)
+
+
+def _logged_client(capture: _LogCapture, **overrides: object) -> TestClient:
+    client = TestClient(make_app(**overrides))
+    logging.getLogger().addHandler(capture.handler)
+    return client
+
+
+def test_access_log_line_per_request(access_log: _LogCapture) -> None:
+    response = _logged_client(access_log).get(f"{API}/healthz")
+    [line] = access_log.access()
+    assert line["request_id"] == response.headers["x-request-id"]
+    assert line["route"] == f"{API}/healthz"
+    assert line["method"] == "GET"
+    assert line["status"] == 200
+    assert isinstance(line["duration_ms"], float)
+    assert line["codes"] == []
+
+
+def test_access_log_carries_warning_codes(access_log: _LogCapture) -> None:
+    transparent = png_bytes(blank())
+    response = _papercraft(_logged_client(access_log), transparent, mode="color")
+    assert response.status_code == 200
+    [line] = access_log.access()
+    assert line["codes"] == ["TRANSPARENT_BASE_PIXELS"]
+    assert line["size"] == int(response.request.headers["content-length"])
+
+
+def test_access_log_carries_error_codes(access_log: _LogCapture, reference_png: bytes) -> None:
+    client = _logged_client(access_log, rate_papercraft_per_hour=1)
+    _papercraft(client, reference_png)
+    _papercraft(client, reference_png)
+    client.post(f"{API}/skin/normalize", files=_upload(b"\0" * 70_000))
+    client.post(f"{API}/skin", json={"palette": {}})
+    statuses_and_codes = [(r["status"], r["codes"]) for r in access_log.access()]
+    assert statuses_and_codes == [
+        (200, []),
+        (429, ["RATE_LIMITED"]),
+        (413, ["FILE_TOO_LARGE"]),
+        (422, ["INVALID_SPEC"]),
+    ]
+
+
 # privacy (tech.md §8.1, §10.9)
 
 

@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 
 from real2block.api.schemas import ErrorBody, ErrorResponse
 from real2block.domain.errors import ErrorCode, Real2blockError
-from real2block.log import request_id_var
+from real2block.log import note_codes, request_id_var
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +61,7 @@ ERROR_RESPONSES: dict[int | str, dict[str, object]] = {
 
 def error_response(code: ErrorCode) -> JSONResponse:
     """Uniform error envelope for a code; never includes internal details."""
+    note_codes([code])
     body = ErrorResponse(
         error=ErrorBody(code=code, message=MESSAGES[code], request_id=request_id_var.get())
     )

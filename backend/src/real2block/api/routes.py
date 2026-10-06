@@ -18,6 +18,7 @@ from real2block.api.schemas import (
 from real2block.domain.errors import ConsentRequiredError, InternalError, InvalidOptionsError
 from real2block.domain.papercraft.document import PrintOptions
 from real2block.domain.skin.io import normalize_skin
+from real2block.log import note_codes
 
 API_PREFIX = "/api/v1"
 PDF_FILENAME = "real2block-figure.pdf"
@@ -48,6 +49,7 @@ async def analyze(
     if consent != CONSENT_VALUE:
         raise ConsentRequiredError("consent is not 'true'")
     result = await container.heavy.run(container.analyzer.analyze, await photo.read())
+    note_codes(result.warnings)
     return AnalyzeResponse(spec=SkinSpec.from_domain(result.spec), warnings=list(result.warnings))
 
 
@@ -68,6 +70,7 @@ def render_skin(container: ContainerDep, spec: SkinSpec) -> Response:
 async def skin_normalize(skin: Annotated[UploadFile, File()]) -> NormalizeResponse:
     """Import a ready skin: 64x32 to 64x64 and model detection."""
     result = normalize_skin(await skin.read())
+    note_codes(result.warnings)
     return NormalizeResponse(
         skin_png_base64=base64.b64encode(result.skin.to_png()).decode("ascii"),
         model=result.model,
@@ -97,6 +100,7 @@ async def papercraft(
     print_options = _parse_options(options)
     data = await skin.read()
     result = await container.heavy.run(container.papercraft.build, data, print_options)
+    note_codes(result.warnings)
     headers = {"Content-Disposition": f'attachment; filename="{PDF_FILENAME}"'}
     if result.warnings:
         headers[WARNINGS_HEADER] = ",".join(result.warnings)

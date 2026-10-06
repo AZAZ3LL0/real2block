@@ -2,10 +2,14 @@
 
 import json
 import logging
+from collections.abc import Iterable
 from contextvars import ContextVar
 from datetime import UTC, datetime
 
 request_id_var: ContextVar[str] = ContextVar("request_id", default="-")
+# Warning and error codes of the current request, gathered for its access log line.
+# The middleware sets a fresh list; the list itself is shared with thread-pool copies.
+request_codes_var: ContextVar[list[str] | None] = ContextVar("request_codes", default=None)
 
 # Fields added via `extra=`; anything else passed there is dropped so that
 # file names, EXIF or client addresses can never reach the log by accident.
@@ -30,6 +34,13 @@ class JsonFormatter(logging.Formatter):
         if record.exc_info:
             payload["exc"] = self.formatException(record.exc_info)
         return json.dumps(payload, ensure_ascii=False)
+
+
+def note_codes(codes: Iterable[str]) -> None:
+    """Add warning or error codes to the access log line of the current request."""
+    collected = request_codes_var.get()
+    if collected is not None:
+        collected.extend(codes)
 
 
 def configure_logging(level: str) -> None:
