@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 from real2block.domain.color import Rgb, delta_e, to_lab
+from real2block.domain.vision.face import FaceBox, Point
 from real2block.domain.vision.sampling import (
     Rect,
     background_lab,
@@ -129,3 +130,35 @@ def test_clusters_are_deterministic_and_sorted_by_size() -> None:
 def test_regions_off_frame_are_clipped() -> None:
     assert Rect(-10, -10, 10, 10).clip(5, 5) == Rect(0, 0, 5, 5)
     assert Rect(10, 10, 20, 20).clip(5, 5).area == 0
+
+
+def test_swapped_mouth_corners_still_sample_the_mouth() -> None:
+    # A turned head can make the detector report the corners in either order.
+    scene = Portrait()
+    face = scene.box()
+    swapped = replace(face, right_mouth=face.left_mouth, left_mouth=face.right_mouth)
+    assert _close(mouth_lab(scene.render(), swapped), scene.mouth)
+
+
+def _off_frame(face: FaceBox, dx: float) -> FaceBox:
+    def move(p: Point) -> Point:
+        return Point(p.x + dx, p.y)
+
+    return replace(
+        face,
+        x=face.x + dx,
+        right_eye=move(face.right_eye),
+        left_eye=move(face.left_eye),
+        nose=move(face.nose),
+        right_mouth=move(face.right_mouth),
+        left_mouth=move(face.left_mouth),
+    )
+
+
+def test_regions_outside_the_frame_give_no_color() -> None:
+    scene = Portrait()
+    face = _off_frame(scene.box(), -2 * scene.width)
+    image = scene.render()
+    assert skin_lab(image, face) is None
+    assert iris_lab(image, face) is None
+    assert mouth_lab(image, face) is None
