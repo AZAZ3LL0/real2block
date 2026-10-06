@@ -1,0 +1,23 @@
+name: Uptime
+
+# Probes production /healthz and the TLS certificate. A failed scheduled run
+# makes GitHub e-mail the owner, which is the alert. Set the repository
+# variable SITE_URL (https://<domain>) to turn it on.
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    if: vars.SITE_URL != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: docker
+      - run: docker/healthcheck.sh "${{ vars.SITE_URL }}"
