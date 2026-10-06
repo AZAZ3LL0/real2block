@@ -43,6 +43,19 @@ docker compose -f docker/compose.yml up             # api + caddy on http://loca
 docker compose -f docker/compose.yml --profile dev up  # plus vite on :5173
 ```
 
+## Production
+
+On a host with ports 80 and 443 open and a DNS record for the domain pointing at it:
+
+```bash
+cp docker/.env.example docker/.env            # set SITE_ADDRESS to the domain
+echo "IP_HASH_SALT=$(openssl rand -hex 32)" > backend/.env
+docker compose -f docker/compose.yml -f docker/compose.prod.yml up -d --build
+docker/smoke-https.sh <domain>
+```
+
+Caddy gets the certificate over ACME, redirects HTTP to HTTPS and adds HSTS; certificates live in the `caddy_data` volume. The API runs with `APP_ENV=prod`: CORS off, HSTS on, and it refuses to start without a 32-byte salt.
+
 ## Git hooks
 
 ```bash
