@@ -92,7 +92,10 @@ def _pixels(image: RgbImage, rects: Sequence[Rect]) -> Lab:
     return np.concatenate(parts) if parts else np.empty((0, 3), dtype=np.float32)
 
 
-def _median(lab: Lab) -> Lab:
+def _median(lab: Lab) -> Lab | None:
+    """Median color, or None when the region has no pixels inside the frame."""
+    if len(lab) == 0:
+        return None
     median: Lab = np.median(lab, axis=0).astype(np.float32)
     return median
 
@@ -116,8 +119,11 @@ def _midpoint(a: Point, b: Point) -> Point:
     return Point((a.x + b.x) / 2, (a.y + b.y) / 2)
 
 
-def skin_lab(image: RgbImage, face: FaceBox) -> Lab:
-    """Median of both cheeks, each centered between the eye and the mouth corner on its side."""
+def skin_lab(image: RgbImage, face: FaceBox) -> Lab | None:
+    """Median of both cheeks, each centered between the eye and the mouth corner on its side.
+
+    None when both cheeks are outside the frame.
+    """
     side = CHEEK_PATCH * face.w
     cheeks = [
         Rect.centered(_midpoint(face.right_eye, face.right_mouth), side, side),
@@ -126,23 +132,25 @@ def skin_lab(image: RgbImage, face: FaceBox) -> Lab:
     return _median(_pixels(image, cheeks))
 
 
-def iris_lab(image: RgbImage, face: FaceBox) -> Lab:
-    """Darker of two clusters around both eye points."""
+def iris_lab(image: RgbImage, face: FaceBox) -> Lab | None:
+    """Darker of two clusters around both eye points; None when both eyes are off frame."""
     side = IRIS_PATCH * face.w
     eyes = [Rect.centered(face.right_eye, side, side), Rect.centered(face.left_eye, side, side)]
     found = clusters(_pixels(image, eyes), IRIS_CLUSTERS)
-    return min(found, key=lambda c: float(c.center[0])).center
+    return min(found, key=lambda c: float(c.center[0])).center if found else None
 
 
-def mouth_lab(image: RgbImage, face: FaceBox) -> Lab:
-    """Median of the strip between the mouth corners."""
+def mouth_lab(image: RgbImage, face: FaceBox) -> Lab | None:
+    """Median of the strip between the mouth corners; None when the strip is off frame."""
     half = MOUTH_PATCH_HEIGHT * face.w / 2
     y = (face.right_mouth.y + face.left_mouth.y) / 2
-    strip = Rect(face.right_mouth.x, y - half, face.left_mouth.x, y + half)
+    # On a turned head the detector may put the corners in either order.
+    x0, x1 = sorted((face.right_mouth.x, face.left_mouth.x))
+    strip = Rect(x0, y - half, x1, y + half)
     return _median(_pixels(image, [strip]))
 
 
-def background_lab(image: RgbImage) -> Lab:
+def background_lab(image: RgbImage) -> Lab | None:
     """Median of the four corner patches."""
     height, width = image.shape[:2]
     pw, ph = CORNER_PATCH * width, CORNER_PATCH * height
@@ -171,13 +179,14 @@ def _largest_far_from(found: Sequence[Cluster], avoid: Sequence[Lab]) -> Lab | N
     return None
 
 
-def hair_lab(image: RgbImage, face: FaceBox, skin: Lab, background: Lab) -> Lab | None:
+def hair_lab(image: RgbImage, face: FaceBox, skin: Lab, background: Lab | None) -> Lab | None:
     """Largest cluster above and beside the face that is neither skin nor background."""
     top_w, top_h = HAIR_TOP_WIDTH * face.w, HAIR_TOP_HEIGHT * face.h
     center_x = face.x + face.w / 2
     above = Rect(center_x - top_w / 2, face.y - top_h, center_x + top_w / 2, face.y)
     found = clusters(_pixels(image, [above, *hair_rects(face, face.y)]), HAIR_CLUSTERS)
-    return _largest_far_from(found, [skin, background])
+    avoid = [skin] if background is None else [skin, background]
+    return _largest_far_from(found, avoid)
 
 
 def shirt_lab(image: RgbImage, face: FaceBox, skin: Lab) -> Lab | None:
