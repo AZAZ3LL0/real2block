@@ -30,3 +30,6 @@ test-results/
 .DS_Store
 .idea/
 .vscode/
+
+# Owner print check output
+/print-kit/

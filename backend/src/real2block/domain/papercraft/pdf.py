@@ -473,6 +473,9 @@ class PdfRenderer:
         frame = document.frame
         canvas = Canvas(buf, pagesize=(frame.width * mm, frame.height * mm), invariant=1)
         canvas.setTitle(text(document.lang, "doc.title"))
+        # Print dialogs default to "fit to page", which shrinks the figure and breaks
+        # the 50 mm ruler check; ask viewers for actual size instead.
+        canvas.setViewerPreference("PrintScaling", "None")
         guide = _GuidePainter(_Page(canvas, frame), document.lang)
         guide.cover(document.cover)
         canvas.showPage()
