@@ -49,7 +49,7 @@ MESSAGES: Mapping[ErrorCode, str] = MappingProxyType(
 # Validation errors are attributed to the request field that failed; a JSON
 # body that is neither of these is a SkinSpec.
 FIELD_CODES: Mapping[str, ErrorCode] = MappingProxyType(
-    {"skin": "INVALID_SKIN", "options": "INVALID_OPTIONS"}
+    {"skin": "INVALID_SKIN", "options": "INVALID_OPTIONS", "photo": "UNSUPPORTED_FORMAT"}
 )
 DEFAULT_VALIDATION_CODE: ErrorCode = "INVALID_SPEC"
 JSON_CONTENT_TYPE = "application/json"

@@ -8,6 +8,36 @@ const imported: State = reducer(reducer(initialState, { type: "start" }), {
   result: { skin, model: "slim", warnings: ["TRANSPARENT_BASE_PIXELS"] },
 });
 
+describe("photo flow", () => {
+  const photo = new Blob(["jpg"], { type: "image/jpeg" });
+  const started = reducer(initialState, { type: "start", photo });
+  const analyzed = reducer(started, {
+    type: "analyzed",
+    result: { spec: { ...SPEC, model: "slim" }, warnings: ["TORSO_NOT_VISIBLE"] },
+  });
+
+  it("keeps the photo only while it is analyzed", () => {
+    expect(started).toMatchObject({ step: "processing", photo });
+    expect(analyzed.photo).toBeNull();
+  });
+
+  it("waits for the first skin before showing the preview", () => {
+    expect(analyzed).toMatchObject({ step: "processing", model: "slim", warnings: ["TORSO_NOT_VISIBLE"] });
+    expect(reducer(analyzed, { type: "styled", skin })).toMatchObject({ step: "preview", skin });
+  });
+
+  it("drops the photo and the spec when the analysis or the first render fails", () => {
+    for (const state of [started, analyzed]) {
+      expect(reducer(state, { type: "failed", code: "NO_FACE" })).toMatchObject({
+        step: "upload",
+        photo: null,
+        spec: null,
+        error: "NO_FACE",
+      });
+    }
+  });
+});
+
 describe("reducer", () => {
   it("moves upload → processing → preview on import", () => {
     expect(reducer(initialState, { type: "start" }).step).toBe("processing");

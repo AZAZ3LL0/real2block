@@ -37,6 +37,18 @@ class Real2blockError(Exception):
         self.detail = detail
 
 
+class ConsentRequiredError(Real2blockError):
+    """Photo sent without consent to its processing."""
+
+    code = "CONSENT_REQUIRED"
+
+
+class NoFaceError(Real2blockError):
+    """No face at or above the score threshold on the photo."""
+
+    code = "NO_FACE"
+
+
 class FileTooLargeError(Real2blockError):
     """Request body exceeds the route limit."""
 
@@ -59,6 +71,12 @@ class ImageTooLargeError(Real2blockError):
     """Photo exceeds the maximum dimensions or pixel count."""
 
     code = "IMAGE_TOO_LARGE"
+
+
+class InvalidSpecError(Real2blockError):
+    """Skin spec is inconsistent with its stylizer."""
+
+    code = "INVALID_SPEC"
 
 
 class InvalidSkinError(Real2blockError):

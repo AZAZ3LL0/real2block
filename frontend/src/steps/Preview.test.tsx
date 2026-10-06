@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SkinSpec } from "../api/client";
@@ -98,6 +98,21 @@ describe("Preview", () => {
     renderPreview(SPEC, onSpec);
     fireEvent.change(screen.getByLabelText("T-shirt"), { target: { value: "#ff0000" } });
     expect(onSpec).toHaveBeenCalledWith({ ...SPEC, palette: { ...SPEC.palette, shirt: "#FF0000" } });
+  });
+
+  it("switches to the photo face style when the spec has one", async () => {
+    const onSpec = vi.fn();
+    const face = Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => "#AA7755"));
+    renderPreview({ ...SPEC, face_front: face }, onSpec);
+    const group = screen.getByRole("radiogroup", { name: "Style" });
+    expect(screen.getByRole("radio", { name: "Pixel style" })).toHaveAttribute("aria-checked", "true");
+    await userEvent.click(within(group).getByRole("radio", { name: "Like the photo" }));
+    expect(onSpec).toHaveBeenCalledWith({ ...SPEC, face_front: face, stylizer: "downsample" });
+  });
+
+  it("offers no photo style without a photo face", () => {
+    renderPreview(SPEC);
+    expect(screen.queryByRole("radiogroup", { name: "Style" })).not.toBeInTheDocument();
   });
 
   it("reports a new hairstyle as a new spec", async () => {

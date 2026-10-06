@@ -106,6 +106,20 @@ class SkinSpec(StrictModel):
             raise ValueError(f"face_front must be {rows}x{cols} for the downsample stylizer")
         return self
 
+    @classmethod
+    def from_domain(cls, spec: base.SkinSpec) -> "SkinSpec":
+        """API spec with colors formatted as hex."""
+        face = spec.face_front
+        return cls(
+            model=spec.model,
+            stylizer=spec.stylizer,
+            hair_style=spec.hair_style,
+            palette=Palette(
+                **{role: getattr(spec.palette, role).to_hex() for role in Palette.model_fields}
+            ),
+            face_front=[[c.to_hex() for c in row] for row in face] if face else None,
+        )
+
     def to_domain(self) -> base.SkinSpec:
         """Domain spec with colors parsed into `Rgb`."""
         palette = base.Palette(
@@ -119,3 +133,10 @@ class SkinSpec(StrictModel):
             palette=palette,
             face_front=tuple(tuple(map(Rgb.from_hex, row)) for row in face) if face else None,
         )
+
+
+class AnalyzeResponse(StrictModel):
+    """Spec guessed from a photo and warnings for the user."""
+
+    spec: SkinSpec
+    warnings: list[WarningCode]

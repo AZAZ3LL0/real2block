@@ -90,13 +90,30 @@ def quantize(samples: Sequence[Rgb], max_colors: int) -> dict[Rgb, Rgb]:
     return mapping
 
 
+def pixels_to_lab(pixels: npt.NDArray[np.uint8]) -> npt.NDArray[np.float32]:
+    """CIE Lab (D65) of 8-bit RGB pixels of any shape, flattened to (n, 3)."""
+    rgb = pixels.reshape(1, -1, 3).astype(np.float32) / 255
+    lab: npt.NDArray[np.float32] = cv2.cvtColor(rgb, cv2.COLOR_RGB2Lab)[0]
+    return lab
+
+
+def from_lab(lab: npt.NDArray[np.float32]) -> Rgb:
+    """Nearest 8-bit color of one Lab triple; out-of-gamut channels are clipped."""
+    rgb = cv2.cvtColor(lab.reshape(1, 1, 3).astype(np.float32), cv2.COLOR_Lab2RGB)[0, 0]
+    r, g, b = (round(min(1.0, max(0.0, float(c))) * 255) for c in rgb)
+    return Rgb(r, g, b)
+
+
+def delta_e(a: npt.NDArray[np.float32], b: npt.NDArray[np.float32]) -> float:
+    """CIE76 color difference of two Lab triples."""
+    return float(np.linalg.norm(a.astype(np.float64) - b.astype(np.float64)))
+
+
 def darken(color: Rgb, delta_l: float = SHADE_DELTA_L) -> Rgb:
     """Same a and b in Lab with lightness lowered by `delta_l`, clamped at black.
 
     Out-of-gamut results are clipped per channel.
     """
-    lab = to_lab([color])
-    lab[0, 0] = max(0.0, float(lab[0, 0]) - delta_l)
-    rgb = cv2.cvtColor(lab[np.newaxis], cv2.COLOR_Lab2RGB)[0, 0]
-    r, g, b = (round(min(1.0, max(0.0, float(c))) * 255) for c in rgb)
-    return Rgb(r, g, b)
+    lab = to_lab([color])[0]
+    lab[0] = max(0.0, float(lab[0]) - delta_l)
+    return from_lab(lab)

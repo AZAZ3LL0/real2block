@@ -8,8 +8,14 @@ from pydantic import ValidationError
 
 from real2block.api.deps import ContainerDep
 from real2block.api.errors import ERROR_RESPONSES
-from real2block.api.schemas import HealthResponse, NormalizeResponse, PapercraftOptions, SkinSpec
-from real2block.domain.errors import InternalError, InvalidOptionsError
+from real2block.api.schemas import (
+    AnalyzeResponse,
+    HealthResponse,
+    NormalizeResponse,
+    PapercraftOptions,
+    SkinSpec,
+)
+from real2block.domain.errors import ConsentRequiredError, InternalError, InvalidOptionsError
 from real2block.domain.papercraft.document import PrintOptions
 from real2block.domain.skin.io import normalize_skin
 
@@ -26,6 +32,23 @@ def healthz(container: ContainerDep) -> HealthResponse:
     if not container.face_model.is_ready():
         raise InternalError("face model not ready")
     return HealthResponse(status="ok")
+
+
+CONSENT_VALUE = "true"
+
+
+@router.post("/analyze")
+async def analyze(
+    container: ContainerDep,
+    photo: Annotated[UploadFile, File()],
+    consent: Annotated[str, Form()] = "",
+) -> AnalyzeResponse:
+    """Guess a skin spec from a photo; the photo is read into memory and dropped."""
+    # Checked before reading the upload, so nothing is processed without consent.
+    if consent != CONSENT_VALUE:
+        raise ConsentRequiredError("consent is not 'true'")
+    result = await container.heavy.run(container.analyzer.analyze, await photo.read())
+    return AnalyzeResponse(spec=SkinSpec.from_domain(result.spec), warnings=list(result.warnings))
 
 
 @router.post(
