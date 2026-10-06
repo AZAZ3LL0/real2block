@@ -144,6 +144,14 @@ def test_page_size_and_count(reference_skin: Skin, paper: Paper) -> None:
         assert (float(box.width), float(box.height)) == pytest.approx(PAPER_PT[paper], abs=0.1)
 
 
+@pytest.mark.parametrize("paper", ["A4", "Letter"])
+def test_print_dialog_defaults_to_actual_size(reference_skin: Skin, paper: Paper) -> None:
+    # The figure must print at 100% (tech.md §1, §4.3); viewers honour this as the default.
+    reader = _render(reference_skin, _pages(reference_skin, paper, 5.0))
+    preferences = reader.trailer["/Root"]["/ViewerPreferences"]
+    assert preferences["/PrintScaling"] == "/None"
+
+
 def test_tab_and_edge_labels_printed(reference_skin: Skin) -> None:
     pages = _pages(reference_skin, "A4", 5.0)
     reader = _render(reference_skin, pages)
